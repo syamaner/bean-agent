@@ -146,11 +146,13 @@ GET /api/roaster/status
 ```
 
 **Auth0 Configuration**:
+
+See detailed configuration in [Auth0 Setup](#auth0-setup) section below.
+
 - Two roles: `roast:admin` and `roast:observer`
-- Admin: Full access to all tools
-- Observer: Read-only access to status endpoints
-- JWT validation on every request
-- Token introspection with Auth0 Management API
+- Scope-based authorization on every endpoint
+- JWT validation using Auth0 public keys
+- Token introspection for claims validation
 
 **Polling Strategy**:
 - Agent polls both status endpoints every 1 second
@@ -249,6 +251,324 @@ builder.Build().Run();
 - Light roast: Drop at 200-205°C, 18-20% dev time
 - Medium roast: Drop at 210-215°C, 15-18% dev time
 - Dark roast: Drop at 220-225°C, 12-15% dev time
+
+---
+
+## Auth0 Setup
+
+### References
+
+- [Auth0 MCP Introduction](https://auth0.com/blog/an-introduction-to-mcp-and-authorization/)
+- [Auth0 MCP Server Guide](https://auth0.com/docs/get-started/auth0-mcp-server)
+- [Auth0 APIs Documentation](https://auth0.com/docs/get-started/apis)
+- [Auth0 RBAC Guide](https://auth0.com/docs/manage-users/access-control/rbac)
+
+### Tenant Configuration
+
+#### 1. Create Auth0 API
+
+```
+Name: Coffee Roasting API
+Identifier: https://coffee-roasting-api
+Signing Algorithm: RS256
+Allow Offline Access: No
+```
+
+#### 2. Define Scopes
+
+**Admin Scopes (roast:admin role)**:
+- `read:roaster` - Read roaster status and sensors
+- `write:roaster` - Control roaster (heat, fan, drum, drop)
+- `read:detection` - Read first crack detection status
+- `write:detection` - Start/stop first crack detection
+
+**Observer Scopes (roast:observer role)**:
+- `read:roaster` - Read roaster status and sensors
+- `read:detection` - Read first crack detection status
+
+#### 3. Create Roles
+
+**Roast Admin Role**:
+```json
+{
+  "name": "Roast Admin",
+  "description": "Full control of roaster and detection",
+  "permissions": [
+    "read:roaster",
+    "write:roaster",
+    "read:detection",
+    "write:detection"
+  ]
+}
+```
+
+**Roast Observer Role**:
+```json
+{
+  "name": "Roast Observer",
+  "description": "Read-only access to status",
+  "permissions": [
+    "read:roaster",
+    "read:detection"
+  ]
+}
+```
+
+#### 4. Create Machine-to-Machine Application
+
+For n8n agent:
+```
+Name: n8n Roasting Agent
+Type: Machine-to-Machine
+Authorized API: Coffee Roasting API
+Grant Type: client_credentials
+Scopes: All admin scopes
+```
+
+### Scope-to-Endpoint Mapping
+
+#### First Crack Detection MCP
+
+| Endpoint | Method | Required Scope | Role |
+|----------|--------|----------------|------|
+| `/api/detect/start` | POST | `write:detection` | Admin |
+| `/api/detect/stop` | POST | `write:detection` | Admin |
+| `/api/detect/status` | GET | `read:detection` | Admin, Observer |
+
+#### Roaster Control MCP
+
+| Endpoint | Method | Required Scope | Role |
+|----------|--------|----------------|------|
+| `/api/roaster/start` | POST | `write:roaster` | Admin |
+| `/api/roaster/stop` | POST | `write:roaster` | Admin |
+| `/api/roaster/set-heat` | POST | `write:roaster` | Admin |
+| `/api/roaster/set-fan` | POST | `write:roaster` | Admin |
+| `/api/roaster/drop-beans` | POST | `write:roaster` | Admin |
+| `/api/roaster/start-cooling` | POST | `write:roaster` | Admin |
+| `/api/roaster/stop-cooling` | POST | `write:roaster` | Admin |
+| `/api/roaster/report-first-crack` | POST | `write:roaster` | Admin |
+| `/api/roaster/status` | GET | `read:roaster` | Admin, Observer |
+
+### JWT Validation Implementation
+
+#### Token Validation Flow
+
+```python
+from jose import jwt, JWTError
+import requests
+from functools import wraps
+from flask import request, jsonify
+
+# Configuration
+AUTH0_DOMAIN = os.environ["AUTH0_DOMAIN"]  # e.g., "your-tenant.auth0.com"
+AUTH0_AUDIENCE = os.environ["AUTH0_AUDIENCE"]  # e.g., "https://coffee-roasting-api"
+ALGORITHMS = ["RS256"]
+
+# Cache for JWKS (refresh periodically)
+_jwks_cache = None
+_jwks_cache_time = None
+JWKS_CACHE_DURATION = 3600  # 1 hour
+
+def get_jwks():
+    """Fetch Auth0 public keys for JWT verification."""
+    global _jwks_cache, _jwks_cache_time
+    
+    now = time.time()
+    if _jwks_cache and (_jwks_cache_time + JWKS_CACHE_DURATION > now):
+        return _jwks_cache
+    
+    url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+    response = requests.get(url)
+    response.raise_for_status()
+    
+    _jwks_cache = response.json()
+    _jwks_cache_time = now
+    return _jwks_cache
+
+def get_token_from_header():
+    """Extract Bearer token from Authorization header."""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return None
+    
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        return None
+    
+    return parts[1]
+
+def verify_token(token):
+    """Verify JWT token and return claims.
+    
+    Raises:
+        JWTError: If token is invalid
+    """
+    jwks = get_jwks()
+    
+    # Get the key ID from token header
+    unverified_header = jwt.get_unverified_header(token)
+    rsa_key = None
+    
+    for key in jwks["keys"]:
+        if key["kid"] == unverified_header["kid"]:
+            rsa_key = {
+                "kty": key["kty"],
+                "kid": key["kid"],
+                "use": key["use"],
+                "n": key["n"],
+                "e": key["e"]
+            }
+            break
+    
+    if not rsa_key:
+        raise JWTError("Unable to find appropriate key")
+    
+    # Verify and decode token
+    payload = jwt.decode(
+        token,
+        rsa_key,
+        algorithms=ALGORITHMS,
+        audience=AUTH0_AUDIENCE,
+        issuer=f"https://{AUTH0_DOMAIN}/"
+    )
+    
+    return payload
+
+def requires_scope(required_scope):
+    """Decorator to enforce scope-based authorization.
+    
+    Usage:
+        @app.route("/api/roaster/start", methods=["POST"])
+        @requires_scope("write:roaster")
+        def start_roaster():
+            ...
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # Extract token
+            token = get_token_from_header()
+            if not token:
+                return jsonify({"error": "Missing authorization token"}), 401
+            
+            # Verify token
+            try:
+                payload = verify_token(token)
+            except JWTError as e:
+                return jsonify({"error": f"Invalid token: {str(e)}"}), 401
+            
+            # Check scope
+            token_scopes = payload.get("scope", "").split()
+            if required_scope not in token_scopes:
+                return jsonify({
+                    "error": "Insufficient permissions",
+                    "required_scope": required_scope
+                }), 403
+            
+            # Store user info in request context (optional)
+            request.user_id = payload.get("sub")
+            request.scopes = token_scopes
+            
+            return f(*args, **kwargs)
+        
+        return decorated_function
+    return decorator
+```
+
+#### Usage Example
+
+```python
+from flask import Flask, jsonify
+from auth import requires_scope
+
+app = Flask(__name__)
+
+@app.route("/api/roaster/start", methods=["POST"])
+@requires_scope("write:roaster")
+def start_roaster():
+    """Start roaster drum (requires admin role)."""
+    # Token already validated by decorator
+    session_manager.start_roaster()
+    return jsonify({"success": True})
+
+@app.route("/api/roaster/status", methods=["GET"])
+@requires_scope("read:roaster")
+def get_status():
+    """Get roaster status (admin or observer)."""
+    status = session_manager.get_status()
+    return jsonify(status.dict())
+```
+
+### Token Acquisition (n8n)
+
+#### Get Access Token from Auth0
+
+```http
+POST https://your-tenant.auth0.com/oauth/token
+Content-Type: application/json
+
+{
+  "client_id": "<n8n-app-client-id>",
+  "client_secret": "<n8n-app-client-secret>",
+  "audience": "https://coffee-roasting-api",
+  "grant_type": "client_credentials"
+}
+```
+
+Response:
+```json
+{
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "token_type": "Bearer",
+  "expires_in": 86400
+}
+```
+
+#### n8n HTTP Request Node Configuration
+
+```json
+{
+  "method": "POST",
+  "url": "http://localhost:5002/api/roaster/start",
+  "authentication": "genericCredentialType",
+  "genericAuthType": "httpHeaderAuth",
+  "headers": {
+    "Authorization": "Bearer {{$credentials.auth0Token}}"
+  }
+}
+```
+
+### Testing Auth0 Integration
+
+#### Test Token Validity
+
+```bash
+# Get token
+export TOKEN=$(curl -s -X POST https://your-tenant.auth0.com/oauth/token \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "client_id": "<client-id>",
+    "client_secret": "<client-secret>",
+    "audience": "https://coffee-roasting-api",
+    "grant_type": "client_credentials"
+  }' | jq -r .access_token)
+
+# Test authenticated endpoint
+curl -X GET http://localhost:5002/api/roaster/status \
+  -H "Authorization: Bearer $TOKEN"
+
+# Test unauthorized endpoint (should get 403)
+curl -X POST http://localhost:5002/api/roaster/start \
+  -H "Authorization: Bearer $TOKEN_WITHOUT_WRITE_SCOPE"
+```
+
+#### Verify Token Claims
+
+Decode JWT at [jwt.io](https://jwt.io) to verify:
+- `iss`: `https://your-tenant.auth0.com/`
+- `aud`: `https://coffee-roasting-api`
+- `scope`: Contains required scopes (e.g., `read:roaster write:roaster`)
+- `exp`: Expiration timestamp (future)
 
 ---
 
