@@ -1,0 +1,15 @@
+{
+  "batch_size": 8,
+  "learning_rate": 5e-05,
+  "num_epochs": 20,
+  "warmup_steps": 100,
+  "weight_decay": 0.01,
+  "max_grad_norm": 1.0,
+  "device": "mps",
+  "seed": 42,
+  "sample_rate": 16000,
+  "target_length_sec": 10,
+  "train_crop_mode": "random",
+  "eval_crop_mode": "center",
+  "overlap": 0.7
+}

@@ -1,0 +1,30 @@
+TEST SET EVALUATION RESULTS
+============================================================
+
+Checkpoint: experiments/runs/baseline_v1/checkpoints/best_model.pt
+Epoch: 2
+Test samples: 14
+
+Accuracy:  0.9286
+Precision: 0.7500
+Recall:    1.0000
+F1 Score:  0.8571
+ROC-AUC:   0.9394
+
+============================================================
+CLASSIFICATION REPORT
+============================================================
+                precision    recall  f1-score   support
+
+no_first_crack       1.00      0.91      0.95        11
+   first_crack       0.75      1.00      0.86         3
+
+      accuracy                           0.93        14
+     macro avg       0.88      0.95      0.90        14
+  weighted avg       0.95      0.93      0.93        14
+
+============================================================
+CONFUSION MATRIX
+============================================================
+[[10  1]
+ [ 0  3]]

@@ -1,0 +1,30 @@
+TEST SET EVALUATION RESULTS
+============================================================
+
+Checkpoint: experiments/runs/5s_80overlap_v1/checkpoints/best_model.pt
+Epoch: 2
+Test samples: 45
+
+Accuracy:  0.8889
+Precision: 0.9048
+Recall:    0.8636
+F1 Score:  0.8837
+ROC-AUC:   0.9783
+
+============================================================
+CLASSIFICATION REPORT
+============================================================
+                precision    recall  f1-score   support
+
+no_first_crack       0.88      0.91      0.89        23
+   first_crack       0.90      0.86      0.88        22
+
+      accuracy                           0.89        45
+     macro avg       0.89      0.89      0.89        45
+  weighted avg       0.89      0.89      0.89        45
+
+============================================================
+CONFUSION MATRIX
+============================================================
+[[21  2]
+ [ 3 19]]

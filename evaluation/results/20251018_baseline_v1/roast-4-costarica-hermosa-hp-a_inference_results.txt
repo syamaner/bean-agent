@@ -1,0 +1,139 @@
+First Crack Detection Results
+======================================================================
+
+Audio file: <PROJECT_ROOT>/data/raw/roast-4-costarica-hermosa-hp-a.wav
+Total windows: 116
+Threshold: 0.5
+Window: 10.0s, Overlap: 50%
+Min event duration: 2.0s
+Pop confirmation: at least 3 pops within 30.0s; min gap merge 10.0s
+
+Detected Events: 1
+----------------------------------------------------------------------
+
+Event 1:
+  Start: 435.00s
+  End: 580.00s
+  Duration: 145.00s
+  Confidence: 0.9998
+
+
+======================================================================
+All Window Predictions:
+----------------------------------------------------------------------
+Window   0:    0.00s -   10.00s | Prob: 0.9123
+Window   1:    5.00s -   15.00s | Prob: 0.0002
+Window   2:   10.00s -   20.00s | Prob: 0.0008
+Window   3:   15.00s -   25.00s | Prob: 0.0000
+Window   4:   20.00s -   30.00s | Prob: 0.0000
+Window   5:   25.00s -   35.00s | Prob: 0.0000
+Window   6:   30.00s -   40.00s | Prob: 0.0000
+Window   7:   35.00s -   45.00s | Prob: 0.0001
+Window   8:   40.00s -   50.00s | Prob: 0.0000
+Window   9:   45.00s -   55.00s | Prob: 0.0000
+Window  10:   50.00s -   60.00s | Prob: 0.0000
+Window  11:   55.00s -   65.00s | Prob: 0.0001
+Window  12:   60.00s -   70.00s | Prob: 0.0000
+Window  13:   65.00s -   75.00s | Prob: 0.0000
+Window  14:   70.00s -   80.00s | Prob: 0.0000
+Window  15:   75.00s -   85.00s | Prob: 0.0000
+Window  16:   80.00s -   90.00s | Prob: 0.0000
+Window  17:   85.00s -   95.00s | Prob: 0.0000
+Window  18:   90.00s -  100.00s | Prob: 0.0000
+Window  19:   95.00s -  105.00s | Prob: 0.0008
+Window  20:  100.00s -  110.00s | Prob: 0.0004
+Window  21:  105.00s -  115.00s | Prob: 0.0000
+Window  22:  110.00s -  120.00s | Prob: 0.0000
+Window  23:  115.00s -  125.00s | Prob: 0.0004
+Window  24:  120.00s -  130.00s | Prob: 0.0002
+Window  25:  125.00s -  135.00s | Prob: 0.0000
+Window  26:  130.00s -  140.00s | Prob: 0.0000
+Window  27:  135.00s -  145.00s | Prob: 0.0000
+Window  28:  140.00s -  150.00s | Prob: 0.0000
+Window  29:  145.00s -  155.00s | Prob: 0.0000
+Window  30:  150.00s -  160.00s | Prob: 0.0000
+Window  31:  155.00s -  165.00s | Prob: 0.0000
+Window  32:  160.00s -  170.00s | Prob: 0.0000
+Window  33:  165.00s -  175.00s | Prob: 0.0000
+Window  34:  170.00s -  180.00s | Prob: 0.0000
+Window  35:  175.00s -  185.00s | Prob: 0.0000
+Window  36:  180.00s -  190.00s | Prob: 0.0000
+Window  37:  185.00s -  195.00s | Prob: 0.0109
+Window  38:  190.00s -  200.00s | Prob: 0.0001
+Window  39:  195.00s -  205.00s | Prob: 0.0000
+Window  40:  200.00s -  210.00s | Prob: 0.0000
+Window  41:  205.00s -  215.00s | Prob: 0.0000
+Window  42:  210.00s -  220.00s | Prob: 0.0000
+Window  43:  215.00s -  225.00s | Prob: 0.0000
+Window  44:  220.00s -  230.00s | Prob: 0.0000
+Window  45:  225.00s -  235.00s | Prob: 0.0000
+Window  46:  230.00s -  240.00s | Prob: 0.0000
+Window  47:  235.00s -  245.00s | Prob: 0.0000
+Window  48:  240.00s -  250.00s | Prob: 0.0000
+Window  49:  245.00s -  255.00s | Prob: 0.0000
+Window  50:  250.00s -  260.00s | Prob: 0.0000
+Window  51:  255.00s -  265.00s | Prob: 0.0000
+Window  52:  260.00s -  270.00s | Prob: 0.0000
+Window  53:  265.00s -  275.00s | Prob: 0.0001
+Window  54:  270.00s -  280.00s | Prob: 0.0001
+Window  55:  275.00s -  285.00s | Prob: 0.0000
+Window  56:  280.00s -  290.00s | Prob: 0.0000
+Window  57:  285.00s -  295.00s | Prob: 0.0003
+Window  58:  290.00s -  300.00s | Prob: 0.7006
+Window  59:  295.00s -  305.00s | Prob: 0.0000
+Window  60:  300.00s -  310.00s | Prob: 0.0000
+Window  61:  305.00s -  315.00s | Prob: 0.0000
+Window  62:  310.00s -  320.00s | Prob: 0.0000
+Window  63:  315.00s -  325.00s | Prob: 0.0000
+Window  64:  320.00s -  330.00s | Prob: 0.0000
+Window  65:  325.00s -  335.00s | Prob: 0.0000
+Window  66:  330.00s -  340.00s | Prob: 0.0000
+Window  67:  335.00s -  345.00s | Prob: 0.0000
+Window  68:  340.00s -  350.00s | Prob: 0.0000
+Window  69:  345.00s -  355.00s | Prob: 0.0000
+Window  70:  350.00s -  360.00s | Prob: 0.0008
+Window  71:  355.00s -  365.00s | Prob: 0.0000
+Window  72:  360.00s -  370.00s | Prob: 0.0007
+Window  73:  365.00s -  375.00s | Prob: 0.0000
+Window  74:  370.00s -  380.00s | Prob: 0.0000
+Window  75:  375.00s -  385.00s | Prob: 0.0000
+Window  76:  380.00s -  390.00s | Prob: 0.0000
+Window  77:  385.00s -  395.00s | Prob: 0.0000
+Window  78:  390.00s -  400.00s | Prob: 0.0306
+Window  79:  395.00s -  405.00s | Prob: 0.9916
+Window  80:  400.00s -  410.00s | Prob: 0.0000
+Window  81:  405.00s -  415.00s | Prob: 0.0000
+Window  82:  410.00s -  420.00s | Prob: 0.0001
+Window  83:  415.00s -  425.00s | Prob: 0.0000
+Window  84:  420.00s -  430.00s | Prob: 0.0000
+Window  85:  425.00s -  435.00s | Prob: 0.0000
+Window  86:  430.00s -  440.00s | Prob: 0.9995
+Window  87:  435.00s -  445.00s | Prob: 0.9995
+Window  88:  440.00s -  450.00s | Prob: 0.0285
+Window  89:  445.00s -  455.00s | Prob: 0.9993
+Window  90:  450.00s -  460.00s | Prob: 0.9995
+Window  91:  455.00s -  465.00s | Prob: 0.0000
+Window  92:  460.00s -  470.00s | Prob: 0.0001
+Window  93:  465.00s -  475.00s | Prob: 0.9997
+Window  94:  470.00s -  480.00s | Prob: 0.9998
+Window  95:  475.00s -  485.00s | Prob: 0.9997
+Window  96:  480.00s -  490.00s | Prob: 0.9994
+Window  97:  485.00s -  495.00s | Prob: 0.9990
+Window  98:  490.00s -  500.00s | Prob: 0.9994
+Window  99:  495.00s -  505.00s | Prob: 0.9994
+Window 100:  500.00s -  510.00s | Prob: 0.9994
+Window 101:  505.00s -  515.00s | Prob: 0.9995
+Window 102:  510.00s -  520.00s | Prob: 0.9993
+Window 103:  515.00s -  525.00s | Prob: 0.9994
+Window 104:  520.00s -  530.00s | Prob: 0.9995
+Window 105:  525.00s -  535.00s | Prob: 0.9994
+Window 106:  530.00s -  540.00s | Prob: 0.9996
+Window 107:  535.00s -  545.00s | Prob: 0.9996
+Window 108:  540.00s -  550.00s | Prob: 0.9997
+Window 109:  545.00s -  555.00s | Prob: 0.9995
+Window 110:  550.00s -  560.00s | Prob: 0.9997
+Window 111:  555.00s -  565.00s | Prob: 0.9998
+Window 112:  560.00s -  570.00s | Prob: 0.0005
+Window 113:  565.00s -  575.00s | Prob: 0.0000
+Window 114:  570.00s -  580.00s | Prob: 0.9978
+Window 115:  575.00s -  585.00s | Prob: 0.9996

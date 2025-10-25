@@ -1,0 +1,22 @@
+{
+  "model_name": "FirstCrackDetector",
+  "version": "1.0.0",
+  "base_model": "MIT/ast-finetuned-audioset-10-10-0.4593",
+  "task": "Binary classification (first_crack vs no_first_crack)",
+  "training_date": "2025-10-18T22:44:22.061520",
+  "checkpoint_epoch": 2,
+  "best_val_f1": 1.0,
+  "best_val_accuracy": 1.0,
+  "input_format": {
+    "sample_rate": 16000,
+    "duration": "10s",
+    "channels": "mono"
+  },
+  "output_format": {
+    "num_classes": 2,
+    "classes": [
+      "no_first_crack",
+      "first_crack"
+    ]
+  }
+}

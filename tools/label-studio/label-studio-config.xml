@@ -1,0 +1,15 @@
+<View>
+  <Header value="Coffee Roast First Crack Detection"/>
+  <Text name="instructions" value="Listen to the audio and mark regions where first crack occurs. Mark other regions as no_first_crack."/>
+  
+  <Audio name="audio" value="$audio" zoom="true" speed="true"/>
+  
+  <Labels name="label" toName="audio">
+    <Label value="no_first_crack" background="#3498db"/>
+    <Label value="first_crack" background="#e74c3c"/>
+  </Labels>
+  
+  <TextArea name="notes" toName="audio" 
+            placeholder="Optional notes about this region (e.g., 'very clear pops', 'subtle', etc.)"
+            editable="true"/>
+</View>

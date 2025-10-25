@@ -1,0 +1,30 @@
+TEST SET EVALUATION RESULTS
+============================================================
+
+Checkpoint: experiments/runs/expanded_9roasts_v1/checkpoints/best_model.pt
+Epoch: 1
+Test samples: 45
+
+Accuracy:  0.9333
+Precision: 0.9524
+Recall:    0.9091
+F1 Score:  0.9302
+ROC-AUC:   0.9862
+
+============================================================
+CLASSIFICATION REPORT
+============================================================
+                precision    recall  f1-score   support
+
+no_first_crack       0.92      0.96      0.94        23
+   first_crack       0.95      0.91      0.93        22
+
+      accuracy                           0.93        45
+     macro avg       0.93      0.93      0.93        45
+  weighted avg       0.93      0.93      0.93        45
+
+============================================================
+CONFUSION MATRIX
+============================================================
+[[22  1]
+ [ 2 20]]

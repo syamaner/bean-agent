@@ -1,0 +1,17 @@
+{
+  "model_checkpoint": "experiments/final_model/model.pt",
+  "detection_defaults": {
+    "threshold": 0.5,
+    "min_pops": 3,
+    "confirmation_window": 30.0
+  },
+  "audio": {
+    "sample_rate": 16000,
+    "window_size": 10.0,
+    "overlap": 0.7
+  },
+  "logging": {
+    "level": "INFO",
+    "format": "json"
+  }
+}

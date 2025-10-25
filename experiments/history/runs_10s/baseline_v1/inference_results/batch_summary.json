@@ -1,0 +1,192 @@
+{
+  "checkpoint": "experiments/runs/baseline_v1/checkpoints/best_model.pt",
+  "parameters": {
+    "window_size": 10.0,
+    "overlap": 0.5,
+    "threshold": 0.5,
+    "min_duration": 2.0
+  },
+  "summary": {
+    "num_files": 4,
+    "total_audio_duration": 2466.739625,
+    "total_processing_time": 28.188297986984253,
+    "average_rtf": 87.63645054123714,
+    "total_events": 23
+  },
+  "files": [
+    {
+      "filename": "roast-1-costarica-hermosa-hp-a.wav",
+      "duration": 639.719125,
+      "num_events": 7,
+      "events": [
+        {
+          "start": 10.0,
+          "end": 20.0,
+          "duration": 10.0,
+          "confidence": 0.9995781779289246
+        },
+        {
+          "start": 25.0,
+          "end": 35.0,
+          "duration": 10.0,
+          "confidence": 0.9914966821670532
+        },
+        {
+          "start": 230.0,
+          "end": 245.0,
+          "duration": 15.0,
+          "confidence": 0.964616596698761
+        },
+        {
+          "start": 420.0,
+          "end": 435.0,
+          "duration": 15.0,
+          "confidence": 0.9989025592803955
+        },
+        {
+          "start": 510.0,
+          "end": 525.0,
+          "duration": 15.0,
+          "confidence": 0.9963079690933228
+        },
+        {
+          "start": 525.0,
+          "end": 625.0,
+          "duration": 100.0,
+          "confidence": 0.9999436140060425
+        },
+        {
+          "start": 625.0,
+          "end": 640.0,
+          "duration": 15.0,
+          "confidence": 0.9996627569198608
+        }
+      ],
+      "processing_time": 7.665395975112915,
+      "realtime_factor": 83.45545710579897
+    },
+    {
+      "filename": "roast-2-costarica-hermosa-hp-a.wav",
+      "duration": 616.592,
+      "num_events": 3,
+      "events": [
+        {
+          "start": 390.0,
+          "end": 400.0,
+          "duration": 10.0,
+          "confidence": 0.8792300224304199
+        },
+        {
+          "start": 435.0,
+          "end": 450.0,
+          "duration": 15.0,
+          "confidence": 0.9997009038925171
+        },
+        {
+          "start": 495.0,
+          "end": 595.0,
+          "duration": 100.0,
+          "confidence": 0.9998539686203003
+        }
+      ],
+      "processing_time": 6.923608064651489,
+      "realtime_factor": 89.05645643750591
+    },
+    {
+      "filename": "roast-3-costarica-hermosa-hp-a.wav",
+      "duration": 625.601375,
+      "num_events": 6,
+      "events": [
+        {
+          "start": 10.0,
+          "end": 20.0,
+          "duration": 10.0,
+          "confidence": 0.9990296363830566
+        },
+        {
+          "start": 435.0,
+          "end": 450.0,
+          "duration": 15.0,
+          "confidence": 0.9989050626754761
+        },
+        {
+          "start": 460.0,
+          "end": 475.0,
+          "duration": 15.0,
+          "confidence": 0.9996229410171509
+        },
+        {
+          "start": 510.0,
+          "end": 525.0,
+          "duration": 15.0,
+          "confidence": 0.9997547268867493
+        },
+        {
+          "start": 525.0,
+          "end": 620.0,
+          "duration": 95.0,
+          "confidence": 0.9998880624771118
+        },
+        {
+          "start": 620.0,
+          "end": 630.0,
+          "duration": 10.0,
+          "confidence": 0.9976981282234192
+        }
+      ],
+      "processing_time": 7.049900054931641,
+      "realtime_factor": 88.73904170632474
+    },
+    {
+      "filename": "roast-4-costarica-hermosa-hp-a.wav",
+      "duration": 584.827125,
+      "num_events": 7,
+      "events": [
+        {
+          "start": 0.0,
+          "end": 10.0,
+          "duration": 10.0,
+          "confidence": 0.9123175144195557
+        },
+        {
+          "start": 290.0,
+          "end": 300.0,
+          "duration": 10.0,
+          "confidence": 0.7005500197410583
+        },
+        {
+          "start": 395.0,
+          "end": 405.0,
+          "duration": 10.0,
+          "confidence": 0.9915540814399719
+        },
+        {
+          "start": 430.0,
+          "end": 445.0,
+          "duration": 15.0,
+          "confidence": 0.9995482563972473
+        },
+        {
+          "start": 445.0,
+          "end": 460.0,
+          "duration": 15.0,
+          "confidence": 0.9995474219322205
+        },
+        {
+          "start": 465.0,
+          "end": 565.0,
+          "duration": 100.0,
+          "confidence": 0.9998181462287903
+        },
+        {
+          "start": 570.0,
+          "end": 585.0,
+          "duration": 15.0,
+          "confidence": 0.9996423721313477
+        }
+      ],
+      "processing_time": 6.549393892288208,
+      "realtime_factor": 89.29484691531889
+    }
+  ]
+}

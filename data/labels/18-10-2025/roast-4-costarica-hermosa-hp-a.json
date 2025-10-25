@@ -1,0 +1,147 @@
+{
+  "audio_file": "roast-4-costarica-hermosa-hp-a.wav",
+  "duration": 584.8270975056689,
+  "sample_rate": 44100,
+  "annotations": [
+    {
+      "id": "chunk_000",
+      "start_time": 0.0,
+      "end_time": 27.463283326575663,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_001",
+      "start_time": 25.702816446666965,
+      "end_time": 58.447500412968715,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_002",
+      "start_time": 56.33494015707828,
+      "end_time": 87.67125061945308,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_003",
+      "start_time": 85.55869036356265,
+      "end_time": 117.24709420191917,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_004",
+      "start_time": 115.48662732201048,
+      "end_time": 147.8792179123305,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_005",
+      "start_time": 145.4145642804583,
+      "end_time": 176.39878136685138,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_006",
+      "start_time": 174.28622111096095,
+      "end_time": 206.67881170128092,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_007",
+      "start_time": 204.5662514453905,
+      "end_time": 236.6067486597288,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_008",
+      "start_time": 234.49418840383834,
+      "end_time": 268.99933925004876,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_009",
+      "start_time": 266.53468561817664,
+      "end_time": 298.5751828325149,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_010",
+      "start_time": 296.8147159526062,
+      "end_time": 328.151026414981,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_011",
+      "start_time": 326.03846615909055,
+      "end_time": 358.07896337342885,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_012",
+      "start_time": 355.26221636557494,
+      "end_time": 386.59852682794974,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_013",
+      "start_time": 384.4859665720593,
+      "end_time": 416.8785571623793,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_014",
+      "start_time": 413.64838510722274,
+      "end_time": 444.98469556959753,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_015",
+      "start_time": 443.28556036100974,
+      "end_time": 479.9032714631106,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_016",
+      "start_time": 477.79071120722017,
+      "end_time": 509.8312084215584,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_017",
+      "start_time": 506.31027466174106,
+      "end_time": 535.5340248682254,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_018",
+      "start_time": 532.7172778603715,
+      "end_time": 561.2368413148923,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_019",
+      "start_time": 561.5889346908741,
+      "end_time": 584.8270975056689,
+      "label": "no_first_crack",
+      "confidence": "high"
+    }
+  ]
+}
