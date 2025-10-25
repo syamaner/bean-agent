@@ -909,7 +909,7 @@ def get_timestamps(dt: datetime, timezone: str) -> Tuple[datetime, datetime]:
 
 **Estimated Time**: 4 hours (most complex component)
 
-**Progress**: Task 4.1 Complete (6 tests), Tasks 4.2-4.4 remaining
+**Progress**: Tasks 4.1-4.2 Complete (13 tests), Tasks 4.3-4.4 remaining
 
 ### Task 4.1: Implement T0 Detection (TDD) ✅
 
@@ -1113,7 +1113,7 @@ class RoastTracker:
 
 ---
 
-### Task 4.2: Implement RoR Calculation (TDD) ⚪
+### Task 4.2: Implement RoR Calculation (TDD) ✅
 
 **Description**: Calculate rate of rise from 60-second buffer.
 
