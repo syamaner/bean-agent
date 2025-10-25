@@ -206,3 +206,113 @@ a27b5fe docs: Reorganize documentation into phase-based hierarchy
 **Phase 2 Status: PRODUCTION READY** ✅
 
 Ready for Phase 3: Hardware validation and agent integration.
+
+
+---
+
+## FINAL VALIDATION: Warp Integration ✅
+
+**Date:** October 25, 2025  
+**Test Type:** Live hardware integration via Warp MCP
+
+### Roaster Control MCP - Real Hardware Test
+
+Successfully tested full integration with real Hottop KN-8828B-2K+ hardware through Warp:
+
+#### Test Sequence
+1. ✅ Started drum motor
+2. ✅ Set heat to 50%, then 100%
+3. ✅ Set fan to 30%, then 100%, then 0%
+4. ✅ Monitored live temperature readings:
+   - Bean: 24°C → 27°C → 45°C
+   - Chamber: 24°C → 29°C → 38°C → 58°C
+5. ✅ Tracked rate of rise: 3.0°C/min → 20.3°C/min
+6. ✅ Opened bean drop door
+7. ✅ Closed door and stopped cooling
+8. ✅ Safely stopped roaster (heat 0%, fan 0%, drum off)
+
+#### Key Fix: Serial Protocol Integration
+**Problem:** Initial implementation used `pyhottop` library's high-level API (callbacks, threading), but Hottop requires **continuous serial commands** every 0.3 seconds.
+
+**Solution:** Implemented direct serial protocol communication:
+- 36-byte command packets (Artisan protocol format)
+- Continuous command loop thread (0.3s intervals)
+- Direct temperature reading from 36-byte responses
+- Big-endian parsing for Celsius values
+- Thread-safe state management with locks
+- Auto-drum-on when heat > 0 (safety requirement)
+
+**Reference Test:** `test_hottop_auto.py` validates low-level serial protocol.
+
+#### Warp Configuration
+```json
+{
+  "mcpServers": {
+    "roaster-control": {
+      "command": "<PROJECT_ROOT>/venv/bin/python",
+      "args": ["-m", "src.mcp_servers.roaster_control"],
+      "cwd": "<PROJECT_ROOT>",
+      "env": {
+        "ROASTER_MOCK_MODE": "0"
+      }
+    }
+  }
+}
+```
+
+#### Logging Configuration
+- **File logging:** `~/Library/Logs/roaster-control/mcp-server.log`
+- **Reason:** Avoids stderr conflict with MCP stdio protocol
+- **Level:** INFO (configurable via `LOGGING_LEVEL`)
+
+### First Crack Detection MCP
+
+Warp configuration tested and validated:
+```json
+{
+  "mcpServers": {
+    "first-crack-detection": {
+      "command": "<PROJECT_ROOT>/venv/bin/python",
+      "args": ["-m", "src.mcp_servers.first_crack_detection"],
+      "cwd": "<PROJECT_ROOT>"
+    }
+  }
+}
+```
+
+### Production Readiness
+
+✅ **Both MCP servers are production-ready:**
+- Real hardware control validated (Roaster Control)
+- Audio detection validated (First Crack Detection)
+- Warp integration successful
+- Thread-safe, concurrent operation
+- Proper error handling and logging
+- Clean shutdown procedures
+
+### Files Added/Modified in Final Integration
+
+```
+src/mcp_servers/roaster_control/
+├── hardware.py          # Direct serial protocol implementation
+├── mcp_server.py        # File logging, env var config
+└── __main__.py          # Entry point fix
+
+tests/
+├── test_hottop_auto.py  # Low-level serial validation
+└── test_mcp_roaster.py  # MCP session manager test
+
+docs/
+└── PHASE2_COMPLETE.md   # This file
+```
+
+---
+
+## Phase 2: COMPLETE AND VALIDATED 🎉
+
+**Summary:**
+- Two production-ready MCP servers
+- Real hardware control working perfectly
+- Warp integration successful
+- Ready for Phase 3 (agent orchestration)
+
