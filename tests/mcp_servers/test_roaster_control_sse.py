@@ -61,12 +61,17 @@ def mock_config():
 
 def test_health_endpoint_public():
     """Test health check endpoint is accessible without auth."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'):
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
+         patch('src.mcp_servers.roaster_control.sse_server.session_manager') as mock_sm:
+        
+        # Mock session manager
+        mock_sm.current_session = None
+        mock_sm.roaster = None
         
         from src.mcp_servers.roaster_control.sse_server import app
-        client = TestClient(app)
+        client = TestClient(app, raise_server_exceptions=False)
         
         response = client.get("/health")
         assert response.status_code == 200
@@ -75,9 +80,9 @@ def test_health_endpoint_public():
 
 def test_root_endpoint_public():
     """Test root endpoint shows API info without auth."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'):
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'):
         
         from src.mcp_servers.roaster_control.sse_server import app
         client = TestClient(app)
@@ -95,9 +100,9 @@ def test_root_endpoint_public():
 @pytest.mark.asyncio
 async def test_sse_endpoint_requires_auth():
     """Test SSE endpoint rejects requests without auth."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'):
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'):
         
         from src.mcp_servers.roaster_control.sse_server import app
         client = TestClient(app)
@@ -110,9 +115,9 @@ async def test_sse_endpoint_requires_auth():
 @pytest.mark.asyncio
 async def test_sse_endpoint_requires_roaster_scope(mock_observer_token):
     """Test SSE endpoint requires at least read:roaster scope."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'), \
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
          patch('src.mcp_servers.shared.auth0_middleware.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
         
         # User with no roaster scopes
@@ -142,9 +147,9 @@ async def test_sse_endpoint_requires_roaster_scope(mock_observer_token):
 @pytest.mark.asyncio
 async def test_observer_can_connect(mock_observer_token):
     """Test observer (read-only) can connect to SSE."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'), \
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
          patch('src.mcp_servers.shared.auth0_middleware.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
         
         mock_validate.return_value = mock_observer_token
@@ -165,9 +170,9 @@ async def test_observer_can_connect(mock_observer_token):
 @pytest.mark.asyncio
 async def test_operator_can_connect(mock_operator_token):
     """Test operator (full control) can connect to SSE."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'), \
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
          patch('src.mcp_servers.shared.auth0_middleware.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
         
         mock_validate.return_value = mock_operator_token
@@ -193,9 +198,9 @@ async def test_user_connection_logged(mock_operator_token, caplog):
     import logging
     caplog.set_level(logging.INFO)
     
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'), \
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
          patch('src.mcp_servers.shared.auth0_middleware.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
         
         mock_validate.return_value = mock_operator_token
@@ -216,9 +221,9 @@ async def test_user_connection_logged(mock_operator_token, caplog):
 
 def test_mcp_tools_have_scope_descriptions():
     """Test that MCP tool descriptions include required scopes."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'):
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'):
         
         from src.mcp_servers.roaster_control.sse_server import setup_mcp_server, mcp_server
         
@@ -259,9 +264,9 @@ async def test_rbac_scenario_observer_vs_operator_integration(mock_observer_toke
 @pytest.mark.asyncio
 async def test_invalid_token_returns_401():
     """Test that invalid JWT returns 401 Unauthorized."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'), \
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
          patch('src.mcp_servers.shared.auth0_middleware.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
         
         # Simulate token validation error
@@ -282,9 +287,9 @@ async def test_invalid_token_returns_401():
 @pytest.mark.asyncio
 async def test_missing_authorization_header_returns_401():
     """Test that missing Authorization header returns 401."""
-    with patch('src.mcp_servers.roaster_control.sse_server.load_config'), \
-         patch('src.mcp_servers.roaster_control.sse_server.setup_logging'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoasterSessionManager'):
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'):
         
         from src.mcp_servers.roaster_control.sse_server import app
         client = TestClient(app)

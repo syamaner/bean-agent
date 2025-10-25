@@ -37,9 +37,9 @@ from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 
 # Import existing MCP components
-from .config import load_config
-from .session_manager import RoasterSessionManager
-from .utils import setup_logging
+from .models import ServerConfig
+from .session_manager import RoastSessionManager
+from .hardware import MockRoaster
 
 # Import shared Auth0 middleware
 from src.mcp_servers.shared.auth0_middleware import (
@@ -52,8 +52,8 @@ from src.mcp_servers.shared.auth0_middleware import (
 
 # Global state
 mcp_server = Server("roaster-control")
-session_manager: RoasterSessionManager = None
-config = None
+session_manager: RoastSessionManager = None
+config: ServerConfig = None
 logger = logging.getLogger(__name__)
 
 
@@ -115,17 +115,6 @@ class Auth0Middleware(BaseHTTPMiddleware):
 # Setup MCP tools with audit logging
 def setup_mcp_server():
     """Register MCP tools and resources with user audit logging."""
-    from .server import (
-        handle_read_status,
-        handle_start_roaster,
-        handle_stop_roaster,
-        handle_set_heat,
-        handle_set_fan,
-        handle_drop_beans,
-        handle_start_cooling,
-        handle_stop_cooling,
-        handle_report_first_crack
-    )
     from mcp.types import Tool, TextContent, Resource, ReadResourceResult
     import json
     
@@ -242,31 +231,42 @@ def setup_mcp_server():
     async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         """Handle tool calls with user audit logging."""
         try:
-            # Map tool names to handlers
-            handlers = {
-                "read_roaster_status": handle_read_status,
-                "start_roaster": handle_start_roaster,
-                "stop_roaster": handle_stop_roaster,
-                "set_heat": handle_set_heat,
-                "set_fan": handle_set_fan,
-                "drop_beans": handle_drop_beans,
-                "start_cooling": handle_start_cooling,
-                "stop_cooling": handle_stop_cooling,
-                "report_first_crack": handle_report_first_crack
-            }
-            
-            if name not in handlers:
-                result = {"error": f"Unknown tool: {name}"}
+            # Call session_manager methods directly
+            if name == "read_roaster_status":
+                status = session_manager.get_status()
+                result = {"status": "success", "data": status.model_dump()}
+            elif name == "start_roaster":
+                session_manager.start_roaster()
+                result = {"status": "success", "message": "Roaster started"}
+            elif name == "stop_roaster":
+                session_manager.stop_roaster()
+                result = {"status": "success", "message": "Roaster stopped"}
+            elif name == "set_heat":
+                session_manager.set_heat(arguments["level"])
+                result = {"status": "success", "message": f"Heat set to {arguments['level']}%"}
+            elif name == "set_fan":
+                session_manager.set_fan(arguments["speed"])
+                result = {"status": "success", "message": f"Fan set to {arguments['speed']}%"}
+            elif name == "drop_beans":
+                session_manager.drop_beans()
+                result = {"status": "success", "message": "Beans dropped"}
+            elif name == "start_cooling":
+                session_manager.start_cooling()
+                result = {"status": "success", "message": "Cooling started"}
+            elif name == "stop_cooling":
+                session_manager.stop_cooling()
+                result = {"status": "success", "message": "Cooling stopped"}
+            elif name == "report_first_crack":
+                from datetime import datetime
+                timestamp = datetime.fromisoformat(arguments["timestamp"])
+                session_manager.report_first_crack(timestamp)
+                result = {"status": "success", "message": "First crack reported"}
             else:
-                # Execute handler
-                result = await handlers[name](arguments)
-                
-                # Log user action (audit trail)
-                # Note: We don't have access to request.state here,
-                # so we'll log without user info for now
-                # TODO: Pass user context through MCP session
-                if result.get("status") == "success":
-                    logger.info(f"Tool executed: {name} with args: {arguments}")
+                result = {"error": f"Unknown tool: {name}"}
+            
+            # Log successful actions
+            if result.get("status") == "success":
+                logger.info(f"Tool executed: {name} with args: {arguments}")
             
             return [TextContent(
                 type="text",
@@ -317,13 +317,21 @@ async def lifespan(app):
     global session_manager, config
     
     # Startup
-    config = load_config()
-    setup_logging(config)
-    session_manager = RoasterSessionManager(config)
+    config = ServerConfig()
+    config.validate()
+    
+    # Create hardware (mock or real)
+    if config.hardware.mock_mode:
+        hardware = MockRoaster()
+    else:
+        from .hardware import HottopRoaster
+        hardware = HottopRoaster(port=config.hardware.port)
+    
+    session_manager = RoastSessionManager(hardware, config)
     setup_mcp_server()
     
     logger.info("Roaster Control MCP Server (HTTP+SSE) initialized")
-    logger.info(f"Mock mode: {config.mock_mode}")
+    logger.info(f"Mock mode: {config.hardware.mock_mode}")
     
     yield
     
