@@ -1,302 +1,251 @@
-# Session Resume - Coffee Roasting ML Project
+# Session Resume - October 25, 2025
 
-**Last Updated**: 2025-01-25 20:22 UTC  
-**Current Phase**: Phase 2 Objective 2 - Roaster Control MCP Server  
-**Current Milestone**: Starting M6 (MCP Server)  
-**Test Status**: 104 passing, 1 skipped
-
----
-
-## Quick Start Commands
-
-```bash
-# Activate environment
-cd ~/git/coffee-roasting
-source venv/bin/activate
-
-# Run all tests
-./venv/bin/pytest tests/mcp_servers/roaster_control/ \
-  --ignore=tests/mcp_servers/roaster_control/integration/test_hottop_manual.py -q
-
-# Expected: 104 passed, 1 skipped in ~27s
-```
+**Last Updated**: 2025-10-25 23:29 UTC  
+**Phase**: Phase 3 (Intelligent Roasting Agent)  
+**Status**: Ready for MCP tool testing
 
 ---
 
-## Current Status
+## What We Accomplished Today
 
-### Completed Milestones ✅
+### 1. Auth0 Configuration ✅
+- Created API Resource Server: `Coffee Roasting MCP API`
+  - Identifier: `https://coffee-roasting-mcp`
+  - ID: `68fd5acfbaba56916a9191b2`
+  - Scopes: `read:roaster`, `write:roaster`, `read:detection`, `write:detection`
+- Created test SPA application for token generation
+  - Client ID: `Lke56LiZsHChlmi8ByUDa7HxSbnynCxH`
+  - Can use client_credentials grant for testing
 
-| Milestone | Tests | Status | Date |
-|-----------|-------|--------|------|
-| M1: Project Setup | - | ✅ | 2025-01-25 |
-| M2: Models & Exceptions | 20 | ✅ | 2025-01-25 |
-| M3: Hardware Wrapper | 28 | ✅ | 2025-01-25 |
-| M4: Roast Tracker | 27 | ✅ | 2025-01-25 |
-| M5: Session Manager | 24 | ✅ | 2025-01-25 |
+### 2. Environment Setup ✅
+- Created `.env.first_crack_detection` and `.env.roaster_control` (local only)
+- Added `.env.*.example` templates to repository
+- Configured Auth0 domain and audience in both servers
 
-**Total**: 104 tests passing, 1 skipped
+### 3. Testing Infrastructure ✅
+- **READY_TO_TEST.md** - Main testing guide
+- **QUICK_TEST.md** - Quick reference commands
+- **docs/MANUAL_TESTING.md** - Comprehensive testing scenarios
+- **test_roaster_server.sh** - Helper script to start roaster server
 
-### Next Milestone 🟡
+### 4. Bug Fix ✅
+- Fixed AttributeError in health endpoints
+- Corrected session_manager API usage:
+  - `current_session` → `is_active()`
+  - `roaster` → `get_hardware_info()`
+- Started session on server startup
+- Health endpoint now working correctly
 
-**M6: MCP Server Implementation**
-- Expose 9 tools via MCP protocol
-- Wire up SessionManager
-- Add health resource
-- Estimated: 2 hours
-
-### Remaining Work ⚪
-
-**M7: Configuration & Documentation**
-- Finalize config system
-- Complete API documentation
-- Testing guide
-- Estimated: 2 hours
+### 5. Verification ✅
+- Roaster Control server starts successfully
+- Health endpoint returns roaster info
+- Mock mode working (ROASTER_MOCK_MODE=1)
 
 ---
 
-## Architecture Overview
+## Current State
 
-```
-Roaster Control MCP Server (Phase 2 Obj 2)
-├── M1: Setup ✅
-├── M2: Data Models ✅
-│   ├── SensorReading, RoastMetrics, RoastStatus
-│   └── ServerConfig, TrackerConfig, HardwareConfig
-├── M3: Hardware Wrapper ✅
-│   ├── MockRoaster (simulation)
-│   ├── HottopRoaster (real Hottop KN-8828B-2K+)
-│   └── StubRoaster (demo)
-├── M4: Roast Tracker ✅
-│   ├── T0 detection (beans added)
-│   ├── Rate of Rise (°C/min)
-│   ├── Development time (FC → drop)
-│   └── Bean drop recording
-├── M5: Session Manager ✅
-│   ├── Thread-safe orchestration
-│   ├── Background sensor polling
-│   └── Control commands + status queries
-├── M6: MCP Server 🟡 ← YOU ARE HERE
-└── M7: Config & Docs ⚪
-```
+### Phase 2: Complete ✅
+Both MCP servers are production-ready with:
+- HTTP+SSE transport
+- Auth0 JWT authentication
+- User-based RBAC (Observer/Operator)
+- Audit logging
+- 23/23 tests passing
+
+### Phase 3: Started 🟡
+Intelligent roasting agent orchestration in progress.
+
+---
+
+## Next Session Tasks
+
+### Immediate (Next 1-2 Hours)
+
+1. **Complete Manual Testing**
+   ```bash
+   # Get token
+   TOKEN=$(curl --request POST \
+     --url https://genai-7175210165555426.uk.auth0.com/oauth/token \
+     --header 'content-type: application/json' \
+     --data '{
+       "client_id": "Lke56LiZsHChlmi8ByUDa7HxSbnynCxH",
+       "audience": "https://coffee-roasting-mcp",
+       "grant_type": "client_credentials",
+       "client_secret": "FNLj1U-yJEJrajhZbCbXhkC1bxbm7brdTlw2nuB7djvS7EQZwipfW3_zL9Y6AttZ"
+     }' | jq -r '.access_token')
+   
+   # Test protected endpoints
+   curl -H "Authorization: Bearer $TOKEN" http://localhost:5002/sse
+   curl -H "Authorization: Bearer $TOKEN" http://localhost:5001/sse
+   ```
+
+2. **Test with Warp MCP Client**
+   - Configure `.warp/mcp_settings.json` with tokens
+   - List available tools
+   - Test `read_roaster_status`
+   - Test `get_first_crack_status`
+
+3. **RBAC Testing**
+   - Create token with only `read:roaster` (Observer role)
+   - Verify read access works
+   - Verify write operations fail with 403
+
+### Short Term (Next Week)
+
+4. **Set Up .NET Aspire AppHost**
+   ```
+   Phase3/
+   ├── AppHost/
+   │   ├── Program.cs (Aspire orchestration)
+   │   └── AppHost.csproj
+   ├── n8n/
+   │   └── docker-compose.yml (if needed)
+   └── workflows/
+       └── roast_orchestrator.json (n8n workflow)
+   ```
+
+5. **Create n8n Workflow**
+   - HTTP polling nodes (1s intervals)
+   - Poll roaster status
+   - Poll first crack detection
+   - LLM decision node (OpenAI/Anthropic)
+   - Control action nodes (set heat/fan)
+
+6. **Implement Safety Layer**
+   - Max temperature limits (e.g., 205°C hard stop)
+   - RoR boundaries (e.g., max 10°C/min)
+   - Watchdog timeout (e.g., 4s stale data)
+   - Emergency stop pathway
+
+### Medium Term (Next 2-3 Weeks)
+
+7. **Roast Profile Library**
+   ```json
+   {
+     "name": "Light Ethiopia Natural",
+     "target_drop_temp": 195,
+     "target_development_pct": 18,
+     "fc_heat_reduction": 25,
+     "fc_fan_increase": 15,
+     "max_ror": 8.0
+   }
+   ```
+
+8. **Hardware-in-the-Loop Testing**
+   - Connect real Hottop roaster
+   - Set `ROASTER_MOCK_MODE=0`
+   - Update `ROASTER_PORT=/dev/tty.usbserial-XXXXX`
+   - Test with real USB microphone
+   - Validate end-to-end with actual roast
+
+9. **Production Deployment**
+   - Cloudflare Tunnel setup
+   - Remote access from n8n Cloud
+   - TLS termination
+   - Production secrets management
 
 ---
 
 ## Key Files
 
-### Source Code
-```
-src/mcp_servers/roaster_control/
-├── __init__.py
-├── __main__.py
-├── models.py              (Data models, 62 lines)
-├── exceptions.py          (Custom exceptions, 50 lines)
-├── hardware.py            (Hardware interfaces, 550 lines)
-├── roast_tracker.py       (Roast tracking, 248 lines)
-├── session_manager.py     (Orchestration, 219 lines)
-├── server.py              (MCP server - TO DO in M6)
-├── config.py              (Config loading - TO DO in M7)
-└── utils.py               (Helpers, 37 lines)
-```
+### Configuration
+- `.env.roaster_control` - Local roaster server config (not in git)
+- `.env.first_crack_detection` - Local detection server config (not in git)
+- `.env.*.example` - Templates (in git)
 
-### Tests
-```
-tests/mcp_servers/roaster_control/unit/
-├── test_exceptions.py     (12 tests ✅)
-├── test_models.py         (20 tests ✅)
-├── test_hardware.py       (28 tests ✅)
-├── test_roast_tracker.py  (27 tests ✅)
-└── test_session_manager.py (24 tests ✅)
-```
+### Testing
+- `READY_TO_TEST.md` - Main testing guide
+- `QUICK_TEST.md` - Quick reference
+- `docs/MANUAL_TESTING.md` - Detailed scenarios
+- `test_roaster_server.sh` - Start script
 
-### Documentation
-```
-docs/
-├── README.md              (Main index)
-├── 02-phase-2/
-│   └── objective-2-roaster-control/
-│       ├── plan.md        (Master plan)
-│       └── milestones/
-│           ├── M3-hardware.md
-│           ├── M4-roast-tracker/
-│           │   ├── README.md
-│           │   ├── task-4.1-t0.md
-│           │   ├── task-4.2-ror.md
-│           │   └── (4.3, 4.4 need docs)
-│           └── M5-session-manager.md
-└── todo/
-    └── timestamp-coordination.md (HIGH priority for Phase 3)
-```
+### Servers
+- `src/mcp_servers/roaster_control/sse_server.py` - Port 5002
+- `src/mcp_servers/first_crack_detection/sse_server.py` - Port 5001
+- `src/mcp_servers/shared/auth0_middleware.py` - Shared auth
+
+### Progress
+- `PROGRESS.md` - Overall project progress
+- `SESSION_RESUME.md` - This file
 
 ---
 
-## What Works Right Now
+## Known Issues
 
-### Hardware Control (M3)
-```python
-from src.mcp_servers.roaster_control.hardware import MockRoaster
+None currently - servers working correctly after bug fix.
 
-roaster = MockRoaster()
-roaster.connect()
-roaster.set_heat(80)
-roaster.set_fan(50)
-roaster.start_drum()
-reading = roaster.read_sensors()
-print(f"Bean: {reading.bean_temp_c}°C")
+---
+
+## Auth0 Quick Reference
+
+**Get Test Token**:
+```bash
+curl --request POST \
+  --url https://genai-7175210165555426.uk.auth0.com/oauth/token \
+  --header 'content-type: application/json' \
+  --data '{
+    "client_id": "Lke56LiZsHChlmi8ByUDa7HxSbnynCxH",
+    "audience": "https://coffee-roasting-mcp",
+    "grant_type": "client_credentials",
+    "client_secret": "FNLj1U-yJEJrajhZbCbXhkC1bxbm7brdTlw2nuB7djvS7EQZwipfW3_zL9Y6AttZ"
+  }' | jq -r '.access_token'
 ```
 
-### Roast Tracking (M4)
-```python
-from src.mcp_servers.roaster_control.roast_tracker import RoastTracker
-from src.mcp_servers.roaster_control.models import TrackerConfig
+**Test Endpoints**:
+```bash
+# Health (no auth)
+curl http://localhost:5002/health
 
-tracker = RoastTracker(TrackerConfig())
-tracker.update(reading)  # Auto-detects T0
-ror = tracker.get_rate_of_rise()  # °C/min
-```
-
-### Session Management (M5)
-```python
-from src.mcp_servers.roaster_control.session_manager import RoastSessionManager
-from src.mcp_servers.roaster_control.models import ServerConfig
-
-config = ServerConfig()
-manager = RoastSessionManager(MockRoaster(), config)
-manager.start_session()  # Connects + starts polling
-
-# Control
-manager.set_heat(80)
-manager.start_roaster()
-
-# Query
-status = manager.get_status()
-print(status.metrics.rate_of_rise_c_per_min)
-
-manager.stop_session()
+# Protected (with auth)
+curl -H "Authorization: Bearer $TOKEN" http://localhost:5002/sse
 ```
 
 ---
 
-## Outstanding Issues
+## Commands to Resume Work
 
-### HIGH Priority
-1. **Timestamp Coordination** (`docs/todo/timestamp-coordination.md`)
-   - FC Detection MCP returns relative time ("08:06")
-   - Roaster Control expects UTC timestamps
-   - Solution: FC detector should return both UTC + relative
-   - Must fix before Phase 3 agent integration
+```bash
+# Navigate to project
+cd /Users/sertanyamaner/git/coffee-roasting
 
-### Documentation Gaps
-1. M4 tasks 4.3 and 4.4 status docs not created
-2. M6 and M7 milestone docs pending
+# Activate venv
+source venv/bin/activate
 
----
+# Start roaster server
+./test_roaster_server.sh
 
-## Next Steps (M6 MCP Server)
+# (In new terminal) Start detection server
+export $(cat .env.first_crack_detection | xargs)
+uvicorn src.mcp_servers.first_crack_detection.sse_server:app --port 5001
 
-### Plan
-From `docs/02-phase-2/objective-2-roaster-control/plan.md` lines 1198-1333:
-
-1. **Create MCP server skeleton** with global SessionManager
-2. **Implement 9 tools**:
-   - `set_heat(percent)` 
-   - `set_fan(percent)`
-   - `start_roaster()`
-   - `stop_roaster()`
-   - `drop_beans()`
-   - `start_cooling()`
-   - `stop_cooling()`
-   - `report_first_crack(timestamp, temp)`
-   - `get_roast_status()` → complete status
-3. **Add health resource**: `health://status`
-4. **Create `__main__.py`** entry point with stdio transport
-
-### Expected Deliverables
-- `server.py` (~300 lines)
-- Integration tests (~10 tests)
-- All 9 MCP tools working
-- Ready for Warp integration
-
----
-
-## Development Workflow
-
-### TDD Process Used
-1. 🔴 **RED**: Write tests first (they fail)
-2. 🟢 **GREEN**: Implement to make tests pass
-3. 🔵 **REFACTOR**: Clean up code
-4. ✅ **VERIFY**: Run all tests, commit
-
-### Commit Style
-```
-M# COMPLETE: Brief description
-
-- Detailed changes
-- Test counts
-- Next steps
-
-Tests: X new passing (Y total, Z skipped)
+# (In new terminal) Get token and test
+TOKEN=$(curl ... | jq -r '.access_token')
+curl -H "Authorization: Bearer $TOKEN" http://localhost:5002/sse
 ```
 
 ---
 
-## Environment
+## Questions to Consider
 
-- **Python**: 3.11 (via python3.11 command)
-- **venv**: `~/git/coffee-roasting/venv/`
-- **Hardware**: Hottop KN-8828B-2K+ at `/dev/tty.usbserial-DN016OJ3`
-- **Device**: MPS (Apple Silicon)
-- **Project Root**: `~/git/coffee-roasting/`
-
----
-
-## Git State
-
-**Branch**: main  
-**Last Commit**: "docs: Update all docs for M4-M5 completion"  
-**Clean**: Yes (no uncommitted changes after doc updates)
+1. Should we add REST endpoints alongside SSE for easier n8n integration?
+2. Do we need a separate configuration service or keep configs in .env files?
+3. Should roast profiles be stored in database or JSON files?
+4. What LLM provider: OpenAI GPT-4, Anthropic Claude, or both?
+5. Do we want real-time observability (Grafana/Prometheus) or just logs?
 
 ---
 
-## Related MCP Servers
+## Success Criteria for Phase 3
 
-### First Crack Detection MCP (Phase 2 Obj 1) ✅ COMPLETE
-- Located: `src/mcp_servers/first_crack_detection/`
-- Status: Complete (86 tests passing)
-- Completion: 2025-01-25
-- Tools: `start_first_crack_detection`, `get_first_crack_status`, `stop_first_crack_detection`
-- **Integration point**: Agent will use both MCP servers together
+- [ ] .NET Aspire orchestrates all services
+- [ ] n8n workflow successfully polls both MCP servers
+- [ ] LLM makes control decisions based on roast metrics
+- [ ] First crack detected → heat reduced, fan increased
+- [ ] Development phase monitored (15-20% target)
+- [ ] Safety interlocks prevent overheating
+- [ ] End-to-end test with mock roaster completes successfully
+- [ ] End-to-end test with real Hottop validates approach
+- [ ] Documentation updated for Phase 3 architecture
 
----
-
-## Key Decisions Made
-
-1. **Thread safety**: Using `threading.Lock` for all shared state
-2. **Polling frequency**: 1Hz (configurable)
-3. **T0 detection**: Automatic from 10°C temperature drop
-4. **Development time**: Requires T0 for percentage calculation
-5. **Hardware abstraction**: Three implementations (Mock, Hottop, Stub)
-6. **Testing**: TDD throughout, target >90% coverage
-
----
-
-## If Starting Fresh Session
-
-1. Read this document
-2. Check git status: `git status`
-3. Run tests to verify: `./venv/bin/pytest tests/mcp_servers/roaster_control/ -q`
-4. Review current milestone plan: `docs/02-phase-2/objective-2-roaster-control/plan.md`
-5. Start with M6 Task 6.1 (see plan lines 1204-1246)
-
----
-
-## Contact Points for Questions
-
-- **Phase 2 Overview**: `docs/02-phase-2/README.md`
-- **Current Plan**: `docs/02-phase-2/objective-2-roaster-control/plan.md`
-- **M5 Status**: `docs/02-phase-2/objective-2-roaster-control/milestones/M5-session-manager.md`
-- **TODO Items**: `docs/todo/`
-
----
-
-**Remember**: Always update this file after completing milestones or making key decisions!
+**Target Completion**: 2-3 weeks
