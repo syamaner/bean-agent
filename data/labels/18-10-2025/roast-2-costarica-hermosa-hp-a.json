@@ -1,0 +1,161 @@
+{
+  "audio_file": "roast-2-costarica-hermosa-hp-a.wav",
+  "duration": 616.5919954648526,
+  "sample_rate": 44100,
+  "annotations": [
+    {
+      "id": "chunk_000",
+      "start_time": 0.0,
+      "end_time": 29.326169561543264,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_001",
+      "start_time": 26.727648207988796,
+      "end_time": 60.13720846797479,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_002",
+      "start_time": 58.28112178686446,
+      "end_time": 90.94824737440632,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_003",
+      "start_time": 88.72094335707392,
+      "end_time": 120.27441693594957,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_004",
+      "start_time": 118.04711291861717,
+      "end_time": 147.37328248016044,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_005",
+      "start_time": 145.5171957990501,
+      "end_time": 175.58580003303751,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_006",
+      "start_time": 173.3584960157051,
+      "end_time": 206.02562160324698,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_007",
+      "start_time": 203.4271002496925,
+      "end_time": 234.23813915612402,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_008",
+      "start_time": 231.63961780256955,
+      "end_time": 266.1628300712218,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_009",
+      "start_time": 263.5643087176673,
+      "end_time": 293.63291295165465,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_010",
+      "start_time": 291.4056089343223,
+      "end_time": 327.0424732116407,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_011",
+      "start_time": 325.18638653053034,
+      "end_time": 360.45203347162663,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_012",
+      "start_time": 358.5959467905164,
+      "end_time": 389.40698569694786,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_013",
+      "start_time": 387.55089901583756,
+      "end_time": 420.5892419396015,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_014",
+      "start_time": 418.3619379222691,
+      "end_time": 450.2866288373668,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_015",
+      "start_time": 448.4305421562565,
+      "end_time": 480.3552330713542,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_016",
+      "start_time": 475.5294077004673,
+      "end_time": 498.1736652100134,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_017",
+      "start_time": 498.54488254623544,
+      "end_time": 530.8407907975552,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_018",
+      "start_time": 527.4998347715566,
+      "end_time": 554.5987003157675,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_019",
+      "start_time": 552.0001789622131,
+      "end_time": 582.4400005324225,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_020",
+      "start_time": 575.7580884804253,
+      "end_time": 591.3492166017521,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_021",
+      "start_time": 591.7204339379741,
+      "end_time": 616.2207781286306,
+      "label": "no_first_crack",
+      "confidence": "high"
+    }
+  ]
+}

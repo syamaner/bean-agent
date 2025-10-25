@@ -1,0 +1,10 @@
+filename,predicted_fc,actual_fc,confidence
+25-10-19_1103-costarica-hermosa-5.alog.wav,07:15,08:38,0.999
+25-10-19_1136-brazil-1.alog.wav,07:34,07:54,1.000
+25-10-19_1204-brazil-2.alog.wav,07:47,08:05,1.000
+25-10-19_1236-brazil-3.alog.wav,07:18,07:35,1.000
+25-10-19_1315-brazil4.alog.wav,07:55,08:13,1.000
+roast-1-costarica-hermosa-hp-a.wav,06:50,08:50,0.949
+roast-2-costarica-hermosa-hp-a.wav,06:15,08:18,0.967
+roast-3-costarica-hermosa-hp-a.wav,08:36,08:53,1.000
+roast-4-costarica-hermosa-hp-a.wav,07:47,08:01,1.000

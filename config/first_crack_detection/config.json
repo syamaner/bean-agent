@@ -1,0 +1,7 @@
+{
+  "model_checkpoint": "experiments/runs/10s_70overlap_v1/checkpoints/best_model.pt",
+  "default_threshold": 0.5,
+  "default_min_pops": 3,
+  "default_confirmation_window": 30.0,
+  "log_level": "INFO"
+}

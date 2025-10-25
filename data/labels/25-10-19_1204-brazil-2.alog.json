@@ -1,0 +1,252 @@
+{
+  "audio_file": "25-10-19_1204-brazil-2.alog.wav",
+  "duration": 597.1801133786848,
+  "sample_rate": 44100,
+  "annotations": [
+    {
+      "id": "chunk_000",
+      "start_time": 2.3556620684964504,
+      "end_time": 6.478070688365239,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_001",
+      "start_time": 10.207868963484618,
+      "end_time": 14.003102296062233,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_002",
+      "start_time": 108.85121808177345,
+      "end_time": 114.85488460356649,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_003",
+      "start_time": 118.68283546487324,
+      "end_time": 121.64377181485835,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_004",
+      "start_time": 136.54660615097131,
+      "end_time": 140.88167870757937,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_005",
+      "start_time": 276.62670540468736,
+      "end_time": 281.63248730024225,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_006",
+      "start_time": 384.7744966187848,
+      "end_time": 389.3876681695903,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_007",
+      "start_time": 406.15540164326296,
+      "end_time": 410.4577566711419,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_008",
+      "start_time": 439.4127695964108,
+      "end_time": 443.4043081013631,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_009",
+      "start_time": 473.4062819459637,
+      "end_time": 476.79254616942734,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_010",
+      "start_time": 477.2342328072705,
+      "end_time": 481.5038703064203,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_011",
+      "start_time": 485.1682335240814,
+      "end_time": 490.58298452875033,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_012",
+      "start_time": 490.8120072298542,
+      "end_time": 494.5581642693381,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_013",
+      "start_time": 495.5396901312116,
+      "end_time": 501.31433395190084,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_014",
+      "start_time": 501.7396618253793,
+      "end_time": 505.60033021541517,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_015",
+      "start_time": 506.0910931463519,
+      "end_time": 509.5755099560029,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_016",
+      "start_time": 509.7718151283777,
+      "end_time": 514.172322742444,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_017",
+      "start_time": 514.2541165642667,
+      "end_time": 518.7854942932495,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_018",
+      "start_time": 519.4725623965611,
+      "end_time": 525.4107938608959,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_019",
+      "start_time": 525.5089464470831,
+      "end_time": 530.2693468771697,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_020",
+      "start_time": 530.8255448655647,
+      "end_time": 535.8804030542134,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_021",
+      "start_time": 536.076708226588,
+      "end_time": 541.2951540588822,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_022",
+      "start_time": 541.4096654094342,
+      "end_time": 547.0370803508423,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_023",
+      "start_time": 547.1515917013943,
+      "end_time": 551.5030230223668,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_024",
+      "start_time": 551.5193817867314,
+      "end_time": 555.5272790560483,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_025",
+      "start_time": 555.5927141135065,
+      "end_time": 559.3388711529905,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_026",
+      "start_time": 559.7478402621044,
+      "end_time": 566.880261525052,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_027",
+      "start_time": 567.583688392728,
+      "end_time": 574.9287735924149,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_028",
+      "start_time": 575.3213839371643,
+      "end_time": 578.2659615227849,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_029",
+      "start_time": 579.7709678443243,
+      "end_time": 580.9324401142079,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_030",
+      "start_time": 581.7013020393422,
+      "end_time": 582.9936444241424,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_031",
+      "start_time": 584.0896816365678,
+      "end_time": 586.3962674119706,
+      "label": "first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_032",
+      "start_time": 586.527137526887,
+      "end_time": 588.8827995953835,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_033",
+      "start_time": 589.1608985895809,
+      "end_time": 591.2221028995153,
+      "label": "no_first_crack",
+      "confidence": "high"
+    },
+    {
+      "id": "chunk_034",
+      "start_time": 591.8437359453685,
+      "end_time": 594.8701073528119,
+      "label": "no_first_crack",
+      "confidence": "high"
+    }
+  ]
+}

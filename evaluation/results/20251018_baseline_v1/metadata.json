@@ -1,0 +1,50 @@
+{
+  "experiment_id": "20251018_baseline_v1",
+  "timestamp": "2025-10-18T22:20:00Z",
+  "model_version": "baseline_v1",
+  "experiment_path": "experiments/runs/baseline_v1",
+  "git_commit": null,
+  
+  "model_config": {
+    "architecture": "AST",
+    "input_length": 10,
+    "num_classes": 2,
+    "notes": "Initial baseline model"
+  },
+  
+  "data": {
+    "training_samples": 4,
+    "recordings": [
+      "roast-1-costarica-hermosa-hp-a.wav",
+      "roast-2-costarica-hermosa-hp-a.wav",
+      "roast-3-costarica-hermosa-hp-a.wav",
+      "roast-4-costarica-hermosa-hp-a.wav"
+    ],
+    "annotation_version": "initial",
+    "data_split": "train: 3, test: 1"
+  },
+  
+  "hyperparameters": {
+    "learning_rate": null,
+    "batch_size": null,
+    "epochs": null,
+    "notes": "To be filled from config.json"
+  },
+  
+  "results": {
+    "detection_file": "first_crack_detections.csv",
+    "inference_files": [
+      "roast-1-costarica-hermosa-hp-a_inference_results.txt",
+      "roast-2-costarica-hermosa-hp-a_inference_results.txt",
+      "roast-3-costarica-hermosa-hp-a_inference_results.txt",
+      "roast-4-costarica-hermosa-hp-a_inference_results.txt"
+    ]
+  },
+  
+  "changes_from_previous": {
+    "model": "Initial baseline",
+    "hyperparameters": "N/A - first run",
+    "data": "N/A - first run",
+    "annotations": "N/A - first run"
+  }
+}
