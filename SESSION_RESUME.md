@@ -41,6 +41,14 @@
 - Health endpoint returns roaster info
 - Mock mode working (ROASTER_MOCK_MODE=1)
 
+### 6. UTC Timestamp Coordination ✅
+- Verified first crack detection returns both relative and UTC timestamps
+- `first_crack_time_relative`: "MM:SS" format for humans
+- `first_crack_time_utc`: ISO 8601 UTC for roaster control
+- Agent can use UTC timestamp directly - no conversion needed
+- Tests passing: `test_get_status_with_first_crack_detected`
+- Marked TODO as complete: `docs/todo/timestamp-coordination.md`
+
 ---
 
 ## Current State
