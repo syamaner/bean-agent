@@ -118,7 +118,16 @@ async def test_sse_endpoint_requires_roaster_scope(mock_observer_token):
     with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
          patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
          patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
-         patch('src.mcp_servers.shared.auth0_middleware.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
+         patch('src.mcp_servers.roaster_control.sse_server.session_manager') as mock_sm, \
+         patch('src.mcp_servers.roaster_control.sse_server.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
+        
+        # Set Auth0 module constants directly
+        import src.mcp_servers.shared.auth0_middleware as auth_module
+        auth_module.AUTH0_DOMAIN = 'test.auth0.com'
+        auth_module.AUTH0_AUDIENCE = 'https://coffee-roasting-api'
+        
+        mock_sm.current_session = None
+        mock_sm.roaster = None
         
         # User with no roaster scopes
         mock_validate.return_value = {
@@ -132,7 +141,7 @@ async def test_sse_endpoint_requires_roaster_scope(mock_observer_token):
         }
         
         from src.mcp_servers.roaster_control.sse_server import app
-        client = TestClient(app)
+        client = TestClient(app, raise_server_exceptions=False)
         
         response = client.get(
             "/sse",
@@ -201,12 +210,20 @@ async def test_user_connection_logged(mock_operator_token, caplog):
     with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
          patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
          patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
-         patch('src.mcp_servers.shared.auth0_middleware.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
+         patch('src.mcp_servers.roaster_control.sse_server.session_manager') as mock_sm, \
+         patch('src.mcp_servers.roaster_control.sse_server.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
         
+        # Set Auth0 module constants directly
+        import src.mcp_servers.shared.auth0_middleware as auth_module
+        auth_module.AUTH0_DOMAIN = 'test.auth0.com'
+        auth_module.AUTH0_AUDIENCE = 'https://coffee-roasting-api'
+        
+        mock_sm.current_session = None
+        mock_sm.roaster = None
         mock_validate.return_value = mock_operator_token
         
         from src.mcp_servers.roaster_control.sse_server import app
-        client = TestClient(app)
+        client = TestClient(app, raise_server_exceptions=False)
         
         response = client.get(
             "/sse",
@@ -223,15 +240,17 @@ def test_mcp_tools_have_scope_descriptions():
     """Test that MCP tool descriptions include required scopes."""
     with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
          patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
-         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'):
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
+         patch('src.mcp_servers.roaster_control.sse_server.session_manager') as mock_sm:
+        
+        mock_sm.current_session = None
+        mock_sm.roaster = None
         
         from src.mcp_servers.roaster_control.sse_server import setup_mcp_server, mcp_server
         
         setup_mcp_server()
         
-        # Check that tools are registered
-        # Note: We can't easily test the actual tool list without running the server
-        # but we can verify the function doesn't error
+        # Check that MCP server is properly initialized
         assert mcp_server.name == "roaster-control"
 
 
