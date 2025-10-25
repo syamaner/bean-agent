@@ -15,23 +15,37 @@ from mcp.server.stdio import stdio_server
 from src.mcp_servers.roaster_control import init_server, ServerConfig, HardwareConfig
 from src.mcp_servers.roaster_control.server import server
 
-# Configure logging
+# Configure logging to file (not stderr - MCP uses stdio)
+import os
+log_dir = os.path.expanduser("~/Library/Logs/roaster-control")
+os.makedirs(log_dir, exist_ok=True)
+log_file = os.path.join(log_dir, "mcp-server.log")
+
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+    ]
 )
 logger = logging.getLogger(__name__)
 
 
 async def main():
     """Main entry point for MCP server."""
+    import os
+    
     logger.info("Starting Roaster Control MCP Server...")
     
-    # Configuration - change mock_mode to False for real hardware
+    # Configuration - controlled via ROASTER_MOCK_MODE environment variable
+    # Set ROASTER_MOCK_MODE=1 for mock hardware, otherwise uses real Hottop
+    mock_mode = os.environ.get("ROASTER_MOCK_MODE", "0") == "1"
+    port = os.environ.get("ROASTER_PORT", "/dev/tty.usbserial-DN016OJ3")
+    
     config = ServerConfig(
         hardware=HardwareConfig(
-            mock_mode=True,  # Set to False for real Hottop hardware
-            port="/dev/tty.usbserial-DN016OJ3",  # Update for your USB port
+            mock_mode=mock_mode,
+            port=port,
             baud_rate=115200
         ),
         logging_level="INFO"
