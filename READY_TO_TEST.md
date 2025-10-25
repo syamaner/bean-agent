@@ -226,13 +226,14 @@ ls -la .env.*
 
 ## What's Next After Manual Testing
 
-1. ✅ Verify both servers start
-2. ✅ Test JWT authentication works
-3. ✅ Confirm RBAC (if you create tokens with different scopes)
-4. 🔲 Test MCP tool calls via Warp or MCP client
-5. 🔲 Set up .NET Aspire orchestration
-6. 🔲 Create n8n workflow for roast automation
-7. 🔲 Hardware-in-the-loop testing (real Hottop)
+1. ✅ Verify both servers start successfully
+2. ✅ Health endpoints work (verified: returns roaster info)
+3. 🔲 Test JWT authentication with real tokens
+4. 🔲 Test RBAC (tokens with different scopes)
+5. 🔲 Test MCP tool calls via Warp or MCP client
+6. 🔲 Set up .NET Aspire orchestration
+7. 🔲 Create n8n workflow for roast automation
+8. 🔲 Hardware-in-the-loop testing (real Hottop)
 
 ---
 
