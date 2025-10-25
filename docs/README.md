@@ -8,7 +8,7 @@
 
 - **[Phase 2: MCP Servers](02-phase-2/)** 🟡 IN PROGRESS
   - Objective 1: First Crack Detection MCP ✅ COMPLETE
-  - Objective 2: Roaster Control MCP 🟡 M4 Complete, M5-M7 remaining
+  - Objective 2: Roaster Control MCP 🟡 M4-M5 Complete, M6-M7 remaining
 
 - **[Phase 3: Agent](03-phase-3/)** ⚪ PLANNED
   - .NET Aspire orchestration
@@ -27,5 +27,5 @@
 
 ---
 
-**Current Status**: Phase 2 Objective 2, Milestone 4 Complete (80 tests passing)  
-**Next**: Milestone 5 - Session Manager
+**Current Status**: Phase 2 Objective 2, Milestone 5 Complete (104 tests passing)  
+**Next**: Milestone 6 - MCP Server (9 tools)

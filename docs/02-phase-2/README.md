@@ -23,8 +23,8 @@ Building two Model Context Protocol (MCP) servers for coffee roasting.
 
 [Full Documentation →](objective-2-roaster-control/README.md)
 
-**Status**: Milestone 4 Complete (80 tests passing)  
-**Current**: Starting Milestone 5 (Session Manager)
+**Status**: Milestone 5 Complete (104 tests passing)  
+**Current**: Starting Milestone 6 (MCP Server with 9 tools)
 
 ---
 

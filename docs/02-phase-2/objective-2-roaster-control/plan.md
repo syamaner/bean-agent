@@ -26,8 +26,8 @@ Build an MCP server that provides programmatic control of the Hottop KN-8828B-2K
 | **M1: Project Setup & pyhottop Research** | 5 tasks | 2 hours | ✅ Complete |
 | **M2: Data Models & Exceptions (TDD)** | 2 tasks | 2 hours | ✅ Complete |
 | **M3: Hardware Wrapper (TDD)** | 3 tasks | 3 hours | ✅ Complete |
-| **M4: Roast Tracker (TDD)** | 4 tasks | 4 hours | 🟡 In Progress |
-| **M5: Session Manager (TDD)** | 3 tasks | 3 hours | ⚪ Not Started |
+| **M4: Roast Tracker (TDD)** | 4 tasks | 4 hours | ✅ Complete |
+| **M5: Session Manager (TDD)** | 3 tasks | 3 hours | ✅ Complete |
 | **M6: MCP Server Implementation** | 4 tasks | 2 hours | ⚪ Not Started |
 | **M7: Configuration & Documentation** | 4 tasks | 2 hours | ⚪ Not Started |
 
@@ -909,7 +909,7 @@ def get_timestamps(dt: datetime, timezone: str) -> Tuple[datetime, datetime]:
 
 **Estimated Time**: 4 hours (most complex component)
 
-**Progress**: Tasks 4.1-4.2 Complete (13 tests), Tasks 4.3-4.4 remaining
+**Progress**: M4 Complete (27 tests), M5 Complete (24 tests), M6-M7 remaining
 
 ### Task 4.1: Implement T0 Detection (TDD) ✅
 
