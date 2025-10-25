@@ -42,7 +42,12 @@ from .session_manager import DetectionSessionManager
 from .utils import setup_logging
 
 # Import shared Auth0 middleware
-from src.mcp_servers.shared.auth0_middleware import validate_auth0_token as validate_token
+from src.mcp_servers.shared.auth0_middleware import (
+    validate_auth0_token,
+    check_user_scope,
+    get_user_info,
+    log_user_action
+)
 
 
 # Global state
@@ -72,20 +77,30 @@ class Auth0Middleware(BaseHTTPMiddleware):
                     )
                 
                 token = auth_header.replace("Bearer ", "")
-                payload = await validate_token(token)
+                payload = await validate_auth0_token(token)
                 
-                # Check scopes
-                scopes = payload.get("scope", "").split()
-                if not ({"read:detection", "write:detection"} & set(scopes)):
+                # Check scopes (user must have at least one detection scope)
+                has_read = check_user_scope(payload, "read:detection")
+                has_write = check_user_scope(payload, "write:detection")
+                
+                if not (has_read or has_write):
+                    user = get_user_info(payload)
                     return JSONResponse(
                         {
                             "error": "Insufficient permissions",
-                            "required_scopes": ["read:detection OR write:detection"]
+                            "required_scopes": ["read:detection OR write:detection"],
+                            "your_scopes": user["scopes"],
+                            "user_email": user["email"]
                         },
                         status_code=403
                     )
                 
+                # Store payload and user info in request state
                 request.state.auth = payload
+                request.state.user = get_user_info(payload)
+                
+                # Log connection
+                logger.info(f"MCP connection from user: {request.state.user['email']}")"
                 
             except Exception as e:
                 logger.error(f"Auth error: {e}")
