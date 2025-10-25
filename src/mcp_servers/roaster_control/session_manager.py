@@ -1,8 +1,11 @@
 """Roast session manager - thread-safe orchestration of hardware + tracker."""
+import logging
 import threading
 import time
 from datetime import datetime, UTC
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from .hardware import HardwareInterface
 from .roast_tracker import RoastTracker
@@ -94,6 +97,14 @@ class RoastSessionManager:
         with self._lock:
             return self._session_active
     
+    def get_hardware_info(self) -> dict:
+        """Get hardware roaster information.
+        
+        Returns:
+            Dict with keys: 'brand', 'model', 'version'
+        """
+        return self._hardware.get_roaster_info()
+    
     def _polling_loop(self):
         """Background thread: poll sensors and update tracker."""
         interval = self._config.tracker.polling_interval
@@ -110,7 +121,7 @@ class RoastSessionManager:
             
             except Exception as e:
                 # Log error but don't crash thread
-                print(f"Polling error: {e}")
+                logger.error(f"Polling error: {e}", exc_info=True)
             
             time.sleep(interval)
     
@@ -190,7 +201,7 @@ class RoastSessionManager:
             }
             
             # Roaster running status
-            roaster_running = self._hardware._drum_running if hasattr(self._hardware, '_drum_running') else False
+            roaster_running = self._hardware.is_drum_running()
             
             # Build timestamps dict (T0, FC, drop)
             timestamps = {}

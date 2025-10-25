@@ -16,7 +16,7 @@ import sys
 import time
 sys.path.insert(0, 'src')
 
-from mcp_servers.roaster_control.hardware import HottopRoaster
+from src.mcp_servers.roaster_control.hardware import HottopRoaster
 
 # Update this to match your USB serial port
 PORT = "/dev/tty.usbserial-DN016OJ3"

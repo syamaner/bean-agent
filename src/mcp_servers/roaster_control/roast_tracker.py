@@ -6,9 +6,12 @@ Tracks roast events and computes metrics:
 - Development time tracking after first crack
 - Total roast duration
 """
+import logging
 from datetime import datetime, UTC
 from typing import Optional, Deque, Tuple
 from collections import deque
+
+logger = logging.getLogger(__name__)
 
 from .models import SensorReading, RoastMetrics, TrackerConfig
 from .utils import format_time
@@ -60,9 +63,30 @@ class RoastTracker:
         Args:
             reading: Current sensor reading
         """
+        # Safety checks (log warnings for attended operation)
+        if reading.bean_temp_c > 250.0:
+            logger.warning(
+                f"⚠️  OVERHEAT WARNING: Bean temperature at {reading.bean_temp_c:.1f}°C "
+                f"(safe limit: 250°C)"
+            )
+        
+        if reading.chamber_temp_c > 300.0:
+            logger.warning(
+                f"⚠️  OVERHEAT WARNING: Chamber temperature at {reading.chamber_temp_c:.1f}°C "
+                f"(safe limit: 300°C)"
+            )
+        
         # Add to temperature buffer
         self._temp_buffer.append((reading.timestamp, reading.bean_temp_c))
         self._last_timestamp = reading.timestamp
+        
+        # Check for stall (negative RoR after T0 for extended period)
+        if self._t0 is not None and len(self._temp_buffer) >= 30:
+            ror = self.get_rate_of_rise()
+            if ror is not None and ror < -2.0:  # Temperature dropping
+                logger.warning(
+                    f"⚠️  STALL WARNING: Rate of rise is {ror:.1f}°C/min (negative)"
+                )
         
         # Auto-detect T0 if not set
         if self._t0 is None:
