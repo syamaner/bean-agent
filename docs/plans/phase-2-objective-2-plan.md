@@ -1,8 +1,9 @@
 # Phase 2 Objective 2 - Implementation Plan
 ## Roaster Control MCP Server
 
-**Status**: Ready to Start  
+**Status**: In Progress - M4 (Roast Tracker)  
 **Created**: 2025-10-25  
+**Last Updated**: 2025-01-25  
 **Estimated Duration**: 2-3 days (18 hours focused work)
 
 ---
@@ -22,10 +23,10 @@ Build an MCP server that provides programmatic control of the Hottop KN-8828B-2K
 
 | Milestone | Tasks | Est. Time | Status |
 |-----------|-------|-----------|--------|
-| **M1: Project Setup & pyhottop Research** | 5 tasks | 2 hours | ⚪ Not Started |
-| **M2: Data Models & Exceptions (TDD)** | 2 tasks | 2 hours | ⚪ Not Started |
-| **M3: Hardware Wrapper (TDD)** | 3 tasks | 3 hours | ⚪ Not Started |
-| **M4: Roast Tracker (TDD)** | 4 tasks | 4 hours | ⚪ Not Started |
+| **M1: Project Setup & pyhottop Research** | 5 tasks | 2 hours | ✅ Complete |
+| **M2: Data Models & Exceptions (TDD)** | 2 tasks | 2 hours | ✅ Complete |
+| **M3: Hardware Wrapper (TDD)** | 3 tasks | 3 hours | ✅ Complete |
+| **M4: Roast Tracker (TDD)** | 4 tasks | 4 hours | 🟡 In Progress |
 | **M5: Session Manager (TDD)** | 3 tasks | 3 hours | ⚪ Not Started |
 | **M6: MCP Server Implementation** | 4 tasks | 2 hours | ⚪ Not Started |
 | **M7: Configuration & Documentation** | 4 tasks | 2 hours | ⚪ Not Started |
@@ -33,6 +34,22 @@ Build an MCP server that provides programmatic control of the Hottop KN-8828B-2K
 **Total**: 18 hours (~2-3 days focused work)
 
 **Legend**: ✅ Complete | 🟡 In Progress | ⚪ Not Started | 🔴 Blocked
+
+---
+
+## Milestones M1-M3: COMPLETED ✅
+
+### Summary of Completed Work:
+- **M1: Project Setup** ✅ - Directory structure, dependencies (pyhottop, pyserial), pytest config
+- **M2: Models & Exceptions** ✅ - 20 tests passing (SensorReading, RoastMetrics, exceptions hierarchy)
+- **M3: Hardware Wrapper** ✅ - 28 tests passing
+  - `MockRoaster` with thermal simulation (24 tests)
+  - `HottopRoaster` with real hardware integration (2 tests, 1 skipped)
+  - `StubRoaster` for demos (2 tests)
+  - Manual integration test verified with physical roaster
+
+**Test Status**: 53 tests passing, 1 skipped  
+**Documentation**: See [M3_HARDWARE_WRAPPER_STATUS.md](../M3_HARDWARE_WRAPPER_STATUS.md)
 
 ---
 
