@@ -20,6 +20,11 @@ pydantic>=2.0.0
 python-dateutil>=2.8.0
 structlog>=23.1.0
 
+# Phase 2 Objective 2: Roaster Control
+pyhottop>=0.1.0
+pyserial>=3.5
+scipy>=1.10.0
+
 # Testing (Phase 2)
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
