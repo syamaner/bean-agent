@@ -52,6 +52,15 @@ class HardwareInterface(ABC):
         """
         pass
     
+    @abstractmethod
+    def is_drum_running(self) -> bool:
+        """Check if drum motor is currently running.
+        
+        Returns:
+            True if drum is running, False otherwise
+        """
+        pass
+    
     # More methods will be defined in Milestone 3
 
 
@@ -68,7 +77,26 @@ class MockRoaster(HardwareInterface):
         "version": "1.0.0"
     }
     
-    def __init__(self):
+    # Thermal simulation constants
+    MAX_HEAT_RATE_C_PER_SEC = 2.0  # Max heating at 100% heat
+    MAX_FAN_COOLING_C_PER_SEC = 0.5  # Max cooling at 100% fan
+    COOLING_MODE_RATE_C_PER_SEC = 5.0  # Rapid cooling when cooling active
+    BEAN_LAG_TEMP_OFFSET_C = 10.0  # Beans are ~10°C cooler than chamber
+    BEAN_THERMAL_LAG_FACTOR = 0.1  # Beans reach 10% of target per second
+    MIN_TEMP_C = 15.0  # Minimum simulated temperature
+    MAX_CHAMBER_TEMP_C = 300.0  # Maximum chamber temperature
+    MAX_BEAN_TEMP_C = 250.0  # Maximum bean temperature
+    
+    def __init__(self, time_scale: float = 1.0):
+        """Initialize mock roaster.
+        
+        Args:
+            time_scale: Time acceleration factor (1.0 = real-time, 100.0 = 100x faster)
+                       Useful for testing to simulate long roasts quickly.
+                       WARNING: Only use values > 1.0 in automated tests.
+        """
+        import logging
+        
         self._connected = False
         self._bean_temp = 20.0  # Room temperature
         self._chamber_temp = 20.0
@@ -78,6 +106,15 @@ class MockRoaster(HardwareInterface):
         self._cooling = False
         self._simulation_start = None
         self._last_update = None
+        self._time_scale = time_scale
+        
+        # Warn if time acceleration is enabled (should only be in tests)
+        if time_scale != 1.0:
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"MockRoaster initialized with time_scale={time_scale}. "
+                f"This should only be used in automated tests!"
+            )
     
     def connect(self) -> bool:
         """Simulate connection."""
@@ -98,6 +135,10 @@ class MockRoaster(HardwareInterface):
     def get_roaster_info(self) -> dict:
         """Return mock roaster info."""
         return self.ROASTER_INFO.copy()
+    
+    def is_drum_running(self) -> bool:
+        """Check if drum motor is running."""
+        return self._drum_running
     
     def read_sensors(self):
         """Read simulated sensor values.
@@ -263,7 +304,7 @@ class MockRoaster(HardwareInterface):
         import time
         
         now = time.time()
-        dt = now - self._last_update
+        dt = (now - self._last_update) * self._time_scale  # Apply time acceleration
         self._last_update = now
         
         if not self._drum_running:
@@ -271,9 +312,9 @@ class MockRoaster(HardwareInterface):
             return
         
         # Thermal model parameters (°C per second)
-        heat_effect = (self._heat / 100.0) * 2.0  # Max 2°C/sec at 100% heat
-        fan_effect = (self._fan / 100.0) * 0.5    # Max 0.5°C/sec cooling
-        cooling_effect = 5.0 if self._cooling else 0  # Rapid cooling
+        heat_effect = (self._heat / 100.0) * self.MAX_HEAT_RATE_C_PER_SEC
+        fan_effect = (self._fan / 100.0) * self.MAX_FAN_COOLING_C_PER_SEC
+        cooling_effect = self.COOLING_MODE_RATE_C_PER_SEC if self._cooling else 0
         
         # Update chamber temperature
         chamber_delta = (heat_effect - fan_effect - cooling_effect) * dt
@@ -281,13 +322,13 @@ class MockRoaster(HardwareInterface):
         
         # Bean temperature lags chamber (thermal mass effect)
         # Beans try to reach chamber temp, but with lag
-        bean_target = self._chamber_temp - 10.0  # Beans are ~10°C cooler
-        bean_delta = (bean_target - self._bean_temp) * 0.1 * dt  # 10% per second
+        bean_target = self._chamber_temp - self.BEAN_LAG_TEMP_OFFSET_C
+        bean_delta = (bean_target - self._bean_temp) * self.BEAN_THERMAL_LAG_FACTOR * dt
         self._bean_temp += bean_delta
         
         # Clamp to realistic values
-        self._chamber_temp = max(15.0, min(300.0, self._chamber_temp))
-        self._bean_temp = max(15.0, min(250.0, self._bean_temp))
+        self._chamber_temp = max(self.MIN_TEMP_C, min(self.MAX_CHAMBER_TEMP_C, self._chamber_temp))
+        self._bean_temp = max(self.MIN_TEMP_C, min(self.MAX_BEAN_TEMP_C, self._bean_temp))
 
 
 class HottopRoaster(HardwareInterface):
@@ -317,6 +358,7 @@ class HottopRoaster(HardwareInterface):
         self._hottop = Hottop()
         self._latest_reading = None
         self._callback_thread = None
+        self._drum_running = False  # Track drum state
     
     def connect(self) -> bool:
         """Connect to real Hottop hardware.
@@ -360,6 +402,10 @@ class HottopRoaster(HardwareInterface):
     def get_roaster_info(self) -> dict:
         """Return Hottop roaster info."""
         return self.ROASTER_INFO.copy()
+    
+    def is_drum_running(self) -> bool:
+        """Check if drum motor is running."""
+        return self._drum_running
     
     def read_sensors(self):
         """Read current sensor values from Hottop.
@@ -442,6 +488,7 @@ class HottopRoaster(HardwareInterface):
             raise RoasterNotConnectedError()
         
         self._hottop.set_drum_motor(True)
+        self._drum_running = True
     
     def stop_drum(self):
         """Stop drum motor.
@@ -455,6 +502,7 @@ class HottopRoaster(HardwareInterface):
             raise RoasterNotConnectedError()
         
         self._hottop.set_drum_motor(False)
+        self._drum_running = False
     
     def drop_beans(self):
         """Open bean drop door (triggers pyhottop drop sequence).
@@ -475,6 +523,7 @@ class HottopRoaster(HardwareInterface):
         
         # pyhottop.drop() handles the full drop sequence
         self._hottop.drop()
+        self._drum_running = False  # Drop stops the drum
     
     def start_cooling(self):
         """Start cooling fan.
@@ -577,6 +626,7 @@ class StubRoaster(HardwareInterface):
     
     def __init__(self):
         self._connected = False
+        self._drum_running = False
     
     def connect(self) -> bool:
         """Simulate connection."""
@@ -594,3 +644,7 @@ class StubRoaster(HardwareInterface):
     def get_roaster_info(self) -> dict:
         """Return stub roaster info."""
         return self.ROASTER_INFO.copy()
+    
+    def is_drum_running(self) -> bool:
+        """Check if drum motor is running."""
+        return self._drum_running
