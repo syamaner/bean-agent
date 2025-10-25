@@ -1,7 +1,9 @@
-# Auth0 Setup - Complete
+# Auth0 Setup - Template
 
 **Date**: October 25, 2025  
 **Status**: ✅ Partially Complete (Manual step required)
+
+⚠️ **NOTE**: Copy this file to `AUTH0_SETUP.md` and fill in your credentials. The actual file is gitignored.
 
 ---
 
@@ -23,10 +25,10 @@
 ### 2. n8n Roasting Agent (M2M Application) ✅
 
 **Type**: Machine-to-Machine  
-**Client ID**: `zwvUJYyqOxCQZHYESdtOLG0oCBvPIHzE`  
-**Client Secret**: `rWBimQ71T_qCURIMhzBL8qaYbAXURNvVdwoqUmYfphe_5jNk82NPC3oQYwYlsX-l`
+**Client ID**: `<YOUR_CLIENT_ID>`  
+**Client Secret**: `<YOUR_CLIENT_SECRET>`
 
-⚠️ **IMPORTANT**: Store these credentials securely! They will not be shown again.
+⚠️ **IMPORTANT**: Never commit these credentials to git!
 
 ---
 
@@ -65,8 +67,8 @@ For n8n (credentials store):
   "name": "Auth0 Coffee Roasting",
   "type": "httpHeaderAuth",
   "data": {
-    "clientId": "zwvUJYyqOxCQZHYESdtOLG0oCBvPIHzE",
-    "clientSecret": "rWBimQ71T_qCURIMhzBL8qaYbAXURNvVdwoqUmYfphe_5jNk82NPC3oQYwYlsX-l",
+    "clientId": "<YOUR_CLIENT_ID>",
+    "clientSecret": "<YOUR_CLIENT_SECRET>",
     "audience": "https://coffee-roasting-api",
     "tokenUrl": "https://genai-7175210165555426.uk.auth0.com/oauth/token"
   }
@@ -81,8 +83,8 @@ For n8n (credentials store):
 curl -X POST https://genai-7175210165555426.uk.auth0.com/oauth/token \
   -H 'Content-Type: application/json' \
   -d '{
-    "client_id": "zwvUJYyqOxCQZHYESdtOLG0oCBvPIHzE",
-    "client_secret": "rWBimQ71T_qCURIMhzBL8qaYbAXURNvVdwoqUmYfphe_5jNk82NPC3oQYwYlsX-l",
+    "client_id": "<YOUR_CLIENT_ID>",
+    "client_secret": "<YOUR_CLIENT_SECRET>",
     "audience": "https://coffee-roasting-api",
     "grant_type": "client_credentials"
   }'
