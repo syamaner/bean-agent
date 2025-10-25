@@ -175,28 +175,51 @@ Three options for the intelligent agent:
 
 ---
 
-### D4: Auth0 Scopes Design
+### D4: Auth0 User-Based Authorization (UPDATED)
 
 **Date**: October 25, 2025  
-**Status**: ✅ **DECIDED**
+**Status**: ✅ **DECIDED - User-based with RBAC**
 
-#### Scopes Defined
+#### Decision: User Authentication with Role-Based Access
 
-**Detection MCP**:
-- `read:detection` - Read detection status
-- `write:detection` - Start/stop detection sessions
+Instead of Machine-to-Machine (M2M) tokens, use **user-based authentication** with Auth0 roles:
 
-**Roaster Control MCP**:
-- `read:roaster` - Read roaster status and sensors
-- `write:roaster` - Control roaster (heat, fan, drop, etc.)
+**User Roles**:
+1. **Roast Observer** (read-only)
+   - `read:detection` - Read first crack detection status
+   - `read:roaster` - Read roaster sensors and status
+   
+2. **Roast Operator** (read + control)
+   - All Observer scopes
+   - `write:detection` - Start/stop detection
+   - `write:roaster` - Control roaster (heat, fan, drop)
+   
+3. **Roast Admin** (full control)
+   - All Operator scopes
+   - `admin:roaster` - Configure roaster settings
+   - `admin:detection` - Configure detection models
+
+#### Auth0 Application Type
+
+- **Regular Web Application** (NOT M2M)
+- OAuth2 Authorization Code Flow with PKCE
+- n8n OAuth2 credential integration
+- Users log in via Auth0 Universal Login
+
+#### n8n Workflow Integration
+
+```
+User → Auth0 Login → n8n Workflow → MCP Servers
+        (OAuth2)      (User JWT)     (Validate JWT + Check Roles)
+```
 
 #### Rationale
 
-- Granular permission model (read vs write)
-- Per-service scopes (detection vs roaster)
-- Follows principle of least privilege
-- Allows read-only observer role
-- Allows full admin role with all scopes
+- **Realistic demo**: Shows real-world user access patterns
+- **Fine-grained RBAC**: Different users have different capabilities
+- **Audit trail**: Know which user performed which action
+- **Security**: User tokens can be revoked individually
+- **Scalability**: Easy to add more roles (e.g., "Quality Control")
 
 ---
 
