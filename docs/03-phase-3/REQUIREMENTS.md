@@ -641,8 +641,28 @@ Alternative to n8n workflow:
 ```python
 # Using Anthropic's Agent SDK
 from anthropic import Anthropic
+from auth0_ai import Auth0Client  # Optional: Auth0 AI SDK for token management
 
 client = Anthropic(api_key="...")
+
+# Option 1: Manual token management
+import requests
+def get_auth0_token():
+    response = requests.post(
+        f"https://{AUTH0_DOMAIN}/oauth/token",
+        json={
+            "client_id": CLIENT_ID,
+            "client_secret": CLIENT_SECRET,
+            "audience": AUDIENCE,
+            "grant_type": "client_credentials"
+        }
+    )
+    return response.json()["access_token"]
+
+# Option 2: Using Auth0 AI SDK (if available for Python)
+# See: https://auth0.com/ai/docs/sdks/python
+# auth_client = Auth0Client(domain, client_id, client_secret)
+# token = auth_client.get_token(audience)
 
 # Agent with tool use
 response = client.messages.create(
@@ -664,10 +684,16 @@ response = client.messages.create(
 )
 ```
 
-Benefits:
+**Benefits:**
 - More programmatic control
 - Better for custom logic and algorithms
 - Can run as standalone service
+- Optional: Use Auth0 AI SDK for simplified token management
+
+**Auth0 Integration:**
+- **Option A**: Direct OAuth2 (shown above) - No extra dependencies
+- **Option B**: [Auth0 Python AI SDK](https://auth0.com/ai/docs/sdks/python) - Simplified token lifecycle
+- **Option C**: [Auth0 + LangChain](https://auth0.com/ai/docs/sdks/langchain) - If using LangChain framework
 
 ### 3.2 .NET Agent
 
