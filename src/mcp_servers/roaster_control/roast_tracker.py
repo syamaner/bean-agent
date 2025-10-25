@@ -86,3 +86,33 @@ class RoastTracker:
             Temperature in °C when beans were added, or None if not detected
         """
         return self._beans_added_temp
+    
+    def get_rate_of_rise(self) -> Optional[float]:
+        """Calculate rate of rise (RoR) from temperature buffer.
+        
+        RoR is the temperature change per minute, calculated from the
+        oldest and newest readings in the buffer.
+        
+        Returns:
+            Rate of rise in °C/min, or None if insufficient data
+        """
+        if len(self._temp_buffer) < 2:
+            return None
+        
+        # Get oldest and newest readings
+        oldest_timestamp, oldest_temp = self._temp_buffer[0]
+        newest_timestamp, newest_temp = self._temp_buffer[-1]
+        
+        # Calculate time difference in seconds
+        time_delta = (newest_timestamp - oldest_timestamp).total_seconds()
+        
+        if time_delta == 0:
+            return None
+        
+        # Calculate temperature change
+        temp_delta = newest_temp - oldest_temp
+        
+        # Convert to °C per minute
+        ror = (temp_delta / time_delta) * 60.0
+        
+        return round(ror, 1)
