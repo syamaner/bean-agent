@@ -135,13 +135,9 @@ def setup_mcp_server():
             health_data = {
                 "status": "healthy",
                 "version": "1.0.0",
-                "session_active": session_manager.current_session is not None,
-                "roaster_connected": session_manager.roaster is not None
+                "session_active": session_manager.is_active(),
+                "roaster_info": session_manager.get_hardware_info()
             }
-            
-            if session_manager.current_session:
-                health_data["session_id"] = session_manager.current_session.session_id
-                health_data["roaster_running"] = session_manager.current_session.roaster_running
             
             return ReadResourceResult(
                 contents=[TextContent(
@@ -305,8 +301,8 @@ async def health(request: Request):
     """Health check."""
     return JSONResponse({
         "status": "healthy",
-        "session_active": session_manager.current_session is not None,
-        "roaster_connected": session_manager.roaster is not None
+        "session_active": session_manager.is_active(),
+        "roaster_info": session_manager.get_hardware_info()
     })
 
 
@@ -328,6 +324,7 @@ async def lifespan(app):
         hardware = HottopRoaster(port=config.hardware.port)
     
     session_manager = RoastSessionManager(hardware, config)
+    session_manager.start_session()  # Start session and polling
     setup_mcp_server()
     
     logger.info("Roaster Control MCP Server (HTTP+SSE) initialized")
@@ -336,9 +333,9 @@ async def lifespan(app):
     yield
     
     # Shutdown
-    if session_manager and session_manager.current_session:
+    if session_manager and session_manager.is_active():
         try:
-            session_manager.stop_roaster()
+            session_manager.stop_session()
         except Exception as e:
             logger.warning(f"Shutdown error: {e}")
 
