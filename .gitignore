@@ -70,5 +70,11 @@ Thumbs.db
 *~
 data/backups/**/*.wav
 
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+*.env
+
 # Auth0 credentials - contains secrets
 docs/03-phase-3/AUTH0_SETUP.md
