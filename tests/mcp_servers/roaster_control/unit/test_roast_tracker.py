@@ -431,3 +431,163 @@ class TestDevelopmentTime:
         
         # Percentage should be None (no T0 to calculate from)
         assert self.tracker.get_development_time_percent() is None
+
+
+class TestBeanDrop:
+    """Test bean drop recording and final metrics."""
+    
+    def setup_method(self):
+        """Setup tracker."""
+        config = TrackerConfig()
+        self.tracker = RoastTracker(config)
+    
+    def test_drop_not_recorded_initially(self):
+        """Test drop is None initially."""
+        assert self.tracker.get_drop() is None
+    
+    def test_record_drop(self):
+        """Test recording bean drop."""
+        drop_time = datetime.now(UTC)
+        self.tracker.record_drop(drop_time, 218.0)
+        
+        assert self.tracker.get_drop() == drop_time
+        assert self.tracker.get_drop_temp() == 218.0
+    
+    def test_drop_recorded_once(self):
+        """Test drop only recorded once (idempotent)."""
+        drop_time1 = datetime.now(UTC)
+        self.tracker.record_drop(drop_time1, 218.0)
+        
+        # Try to record again
+        drop_time2 = datetime.now(UTC) + timedelta(seconds=30)
+        self.tracker.record_drop(drop_time2, 220.0)
+        
+        # Should still be first drop
+        assert self.tracker.get_drop() == drop_time1
+        assert self.tracker.get_drop_temp() == 218.0
+    
+    def test_total_roast_duration(self):
+        """Test total roast duration from T0 to drop."""
+        base_time = datetime.now(UTC)
+        
+        # T0 at T+1s
+        reading1 = SensorReading(
+            timestamp=base_time,
+            bean_temp_c=170.0,
+            chamber_temp_c=180.0,
+            fan_speed_percent=50,
+            heat_level_percent=100
+        )
+        self.tracker.update(reading1)
+        
+        reading2 = SensorReading(
+            timestamp=base_time + timedelta(seconds=1),
+            bean_temp_c=150.0,
+            chamber_temp_c=175.0,
+            fan_speed_percent=50,
+            heat_level_percent=100
+        )
+        self.tracker.update(reading2)
+        
+        # Drop at T+600s (10 minutes)
+        drop_time = base_time + timedelta(seconds=600)
+        self.tracker.record_drop(drop_time, 218.0)
+        
+        # Total duration = 600 - 1 = 599 seconds
+        total = self.tracker.get_total_roast_duration()
+        assert total == 599
+    
+    def test_total_roast_duration_none_without_t0(self):
+        """Test total duration is None without T0."""
+        drop_time = datetime.now(UTC)
+        self.tracker.record_drop(drop_time, 218.0)
+        
+        assert self.tracker.get_total_roast_duration() is None
+    
+    def test_development_time_clamped_to_drop(self):
+        """Test development time stops at drop (doesn't continue after)."""
+        base_time = datetime.now(UTC)
+        
+        # T0
+        reading1 = SensorReading(
+            timestamp=base_time,
+            bean_temp_c=170.0,
+            chamber_temp_c=180.0,
+            fan_speed_percent=50,
+            heat_level_percent=100
+        )
+        self.tracker.update(reading1)
+        
+        reading2 = SensorReading(
+            timestamp=base_time + timedelta(seconds=1),
+            bean_temp_c=150.0,
+            chamber_temp_c=175.0,
+            fan_speed_percent=50,
+            heat_level_percent=100
+        )
+        self.tracker.update(reading2)
+        
+        # First crack at T+480s
+        fc_time = base_time + timedelta(seconds=480)
+        self.tracker.report_first_crack(fc_time, 205.0)
+        
+        # Drop at T+600s
+        drop_time = base_time + timedelta(seconds=600)
+        self.tracker.record_drop(drop_time, 218.0)
+        
+        # Add reading after drop at T+700s
+        reading3 = SensorReading(
+            timestamp=base_time + timedelta(seconds=700),
+            bean_temp_c=180.0,  # Cooling down
+            chamber_temp_c=190.0,
+            fan_speed_percent=100,
+            heat_level_percent=0
+        )
+        self.tracker.update(reading3)
+        
+        # Development time should be 600 - 480 = 120s (clamped to drop)
+        # NOT 700 - 480 = 220s
+        dev_time = self.tracker.get_development_time_seconds()
+        assert dev_time == 120
+    
+    def test_get_metrics_complete(self):
+        """Test get_metrics returns complete RoastMetrics."""
+        base_time = datetime.now(UTC)
+        
+        # T0 at T+1s
+        reading1 = SensorReading(
+            timestamp=base_time,
+            bean_temp_c=170.0,
+            chamber_temp_c=180.0,
+            fan_speed_percent=50,
+            heat_level_percent=100
+        )
+        self.tracker.update(reading1)
+        
+        reading2 = SensorReading(
+            timestamp=base_time + timedelta(seconds=1),
+            bean_temp_c=150.0,
+            chamber_temp_c=175.0,
+            fan_speed_percent=50,
+            heat_level_percent=100
+        )
+        self.tracker.update(reading2)
+        
+        # First crack at T+480s (8 min)
+        fc_time = base_time + timedelta(seconds=480)
+        self.tracker.report_first_crack(fc_time, 205.0)
+        
+        # Drop at T+600s (10 min)
+        drop_time = base_time + timedelta(seconds=600)
+        self.tracker.record_drop(drop_time, 218.0)
+        
+        # Get complete metrics
+        metrics = self.tracker.get_metrics()
+        
+        assert metrics.beans_added_temp_c == 170.0
+        assert metrics.first_crack_temp_c == 205.0
+        assert metrics.roast_elapsed_seconds == 599
+        assert metrics.roast_elapsed_display == "09:59"
+        assert metrics.development_time_seconds == 120
+        assert abs(metrics.development_time_percent - 20.0) < 1.0
+        assert metrics.total_roast_duration_seconds == 599

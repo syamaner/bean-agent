@@ -24,6 +24,10 @@ class RoastTracker:
     - get_first_crack(), get_first_crack_temp()
     - get_development_time_seconds(), get_development_time_percent()
     - get_rate_of_rise()
+    - record_drop(datetime, temp_c)
+    - get_drop(), get_drop_temp()
+    - get_total_roast_duration()
+    - get_metrics() -> RoastMetrics
     """
     
     def __init__(self, config: TrackerConfig):
@@ -166,12 +170,85 @@ class RoastTracker:
         Total roast time is measured from T0 to current (or drop) time.
         Returns None if T0 is not detected or there is no current time.
         """
-        if self._t0 is None or self._last_timestamp is None or self._first_crack is None:
+        if self._t0 is None or self._first_crack is None:
             return None
-        total_secs = int((self._last_timestamp - self._t0).total_seconds())
+        
+        # Use drop time if recorded, otherwise current time
+        end_time = self._drop if self._drop is not None else self._last_timestamp
+        if end_time is None:
+            return None
+        
+        total_secs = int((end_time - self._t0).total_seconds())
         if total_secs <= 0:
             return None
         dev_secs = self.get_development_time_seconds()
         if dev_secs is None:
             return None
         return round((dev_secs / total_secs) * 100.0, 1)
+    
+    # ----- Bean drop recording -----
+    def record_drop(self, when: datetime, temp_c: float):
+        """Record bean drop event.
+        
+        This is idempotent: only the first drop is recorded.
+        """
+        if self._drop is None:
+            self._drop = when
+            self._drop_temp = temp_c
+    
+    def get_drop(self) -> Optional[datetime]:
+        """Return drop timestamp if recorded."""
+        return self._drop
+    
+    def get_drop_temp(self) -> Optional[float]:
+        """Return temperature at drop if recorded."""
+        return self._drop_temp
+    
+    def get_total_roast_duration(self) -> Optional[int]:
+        """Return total roast duration (T0 to drop) in seconds.
+        
+        Returns None if T0 or drop not recorded.
+        """
+        if self._t0 is None or self._drop is None:
+            return None
+        return int((self._drop - self._t0).total_seconds())
+    
+    # ----- Complete metrics -----
+    def get_metrics(self) -> RoastMetrics:
+        """Return complete roast metrics as RoastMetrics model.
+        
+        This is the main interface for SessionManager to get all metrics.
+        """
+        # Calculate roast elapsed time
+        roast_elapsed_secs = None
+        roast_elapsed_display = None
+        if self._t0 is not None:
+            end_time = self._drop if self._drop is not None else self._last_timestamp
+            if end_time is not None:
+                roast_elapsed_secs = int((end_time - self._t0).total_seconds())
+                roast_elapsed_display = format_time(roast_elapsed_secs)
+        
+        # Calculate first crack display time
+        fc_time_display = None
+        if self._first_crack is not None and self._t0 is not None:
+            fc_elapsed = int((self._first_crack - self._t0).total_seconds())
+            fc_time_display = format_time(fc_elapsed)
+        
+        # Calculate development time display
+        dev_time_display = None
+        dev_time_secs = self.get_development_time_seconds()
+        if dev_time_secs is not None:
+            dev_time_display = format_time(dev_time_secs)
+        
+        return RoastMetrics(
+            roast_elapsed_seconds=roast_elapsed_secs,
+            roast_elapsed_display=roast_elapsed_display,
+            rate_of_rise_c_per_min=self.get_rate_of_rise(),
+            beans_added_temp_c=self._beans_added_temp,
+            first_crack_temp_c=self._first_crack_temp,
+            first_crack_time_display=fc_time_display,
+            development_time_seconds=dev_time_secs,
+            development_time_display=dev_time_display,
+            development_time_percent=self.get_development_time_percent(),
+            total_roast_duration_seconds=self.get_total_roast_duration()
+        )
