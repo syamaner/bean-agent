@@ -2,20 +2,18 @@
 """
 First Crack Detection MCP Server - HTTP+SSE Transport
 
-MCP server with HTTP+SSE transport for remote access via Warp, Claude Desktop,
-and n8n workflows. Includes Auth0 JWT authentication.
+MCP server with HTTP+SSE transport for remote access via Warp, Claude Desktop.
+Includes Auth0 JWT authentication.
 
 Run:
     uvicorn src.mcp_servers.first_crack_detection.sse_server:app --port 5001
 
-Configure in Warp (mcp_settings.json):
+Configure in Warp (.warp/mcp_settings.json):
 {
   "mcpServers": {
     "first-crack-detection": {
       "url": "http://localhost:5001/sse",
-      "transport": {
-        "type": "sse"
-      },
+      "transport": {"type": "sse"},
       "headers": {
         "Authorization": "Bearer YOUR_AUTH0_TOKEN"
       }
@@ -23,26 +21,28 @@ Configure in Warp (mcp_settings.json):
   }
 }
 """
+import asyncio
 import logging
 import os
-from typing import Optional
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response, Depends
-from fastapi.responses import JSONResponse
-from sse_starlette.sse import EventSourceResponse
+from starlette.applications import Starlette
+from starlette.routing import Route, Mount
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 
-# Import existing MCP server components
+# Import existing MCP components
 from .config import load_config
 from .session_manager import DetectionSessionManager
-from .server import register_tools as setup_mcp_tools
 from .utils import setup_logging
 
 # Import shared Auth0 middleware
-from src.mcp_servers.shared.auth0_middleware import validate_auth0_token
+from src.mcp_servers.shared.auth0_middleware import validate_auth0_token as validate_token
 
 
 # Global state
@@ -52,233 +52,227 @@ config = None
 logger = logging.getLogger(__name__)
 
 
-# Auth0 Middleware for MCP
-class Auth0MCPMiddleware(BaseHTTPMiddleware):
-    """
-    Middleware to validate Auth0 JWT tokens for MCP endpoints.
-    
-    Validates tokens for /sse endpoint (MCP transport).
-    Public endpoints like /health are exempt.
-    """
+# Auth0 Middleware
+class Auth0Middleware(BaseHTTPMiddleware):
+    """Validate Auth0 JWT for MCP endpoints."""
     
     async def dispatch(self, request: Request, call_next):
-        # Skip auth for public endpoints
-        if request.url.path in ["/", "/health", "/docs", "/openapi.json"]:
+        # Public endpoints
+        if request.url.path in ["/", "/health"]:
             return await call_next(request)
         
-        # Validate Auth0 token for MCP endpoints
+        # MCP endpoints require auth
         if request.url.path.startswith("/sse") or request.url.path.startswith("/messages"):
             try:
-                # Extract Authorization header
-                auth_header = request.headers.get("Authorization")
-                if not auth_header:
+                auth_header = request.headers.get("Authorization", "")
+                if not auth_header.startswith("Bearer "):
                     return JSONResponse(
-                        status_code=401,
-                        content={"error": "Missing Authorization header"}
+                        {"error": "Missing or invalid Authorization header"},
+                        status_code=401
                     )
                 
-                # Validate token (raises HTTPException if invalid)
-                token_payload = await validate_auth0_token(auth_header.replace("Bearer ", ""))
+                token = auth_header.replace("Bearer ", "")
+                payload = await validate_token(token)
                 
-                # Check for required scopes
-                scopes = token_payload.get("scope", "").split()
-                required_scopes = {"read:detection", "write:detection"}
-                
-                if not required_scopes.intersection(scopes):
+                # Check scopes
+                scopes = payload.get("scope", "").split()
+                if not ({"read:detection", "write:detection"} & set(scopes)):
                     return JSONResponse(
-                        status_code=403,
-                        content={
+                        {
                             "error": "Insufficient permissions",
-                            "required_scopes": list(required_scopes),
-                            "your_scopes": scopes
-                        }
+                            "required_scopes": ["read:detection OR write:detection"]
+                        },
+                        status_code=403
                     )
                 
-                # Store token payload in request state
-                request.state.auth_payload = token_payload
+                request.state.auth = payload
                 
             except Exception as e:
-                logger.error(f"Auth0 validation error: {e}")
+                logger.error(f"Auth error: {e}")
                 return JSONResponse(
-                    status_code=401,
-                    content={"error": f"Invalid token: {str(e)}"}
+                    {"error": f"Authentication failed: {str(e)}"},
+                    status_code=401
                 )
         
         return await call_next(request)
 
 
-# FastAPI app
-app = FastAPI(
-    title="First Crack Detection MCP Server",
-    description="MCP server with HTTP+SSE transport and Auth0 JWT authentication",
-    version="1.0.0"
-)
-
-# Add Auth0 middleware
-app.add_middleware(Auth0MCPMiddleware)
-
-
-@app.on_event("startup")
-async def startup():
-    """Initialize MCP server and session manager on startup."""
-    global session_manager, config, mcp_server
+# Setup MCP tools
+def setup_mcp_server():
+    """Register MCP tools and resources."""
+    from .server import (
+        handle_start_detection,
+        handle_get_status,
+        handle_stop_detection
+    )
+    from mcp.types import Tool, TextContent, Resource, ReadResourceResult
+    from pathlib import Path
+    import json
+    import torch
     
-    try:
-        # Load configuration
-        config = load_config()
-        setup_logging(config)
-        
-        # Initialize session manager
-        session_manager = DetectionSessionManager(config)
-        
-        # Register MCP tools with the server
-        # Pass session_manager to tool handlers
-        setup_mcp_tools(mcp_server, session_manager, config)
-        
-        logger.info(f"First Crack Detection MCP Server initialized")
-        logger.info(f"Model checkpoint: {config.model_checkpoint}")
-        logger.info(f"SSE endpoint: /sse")
-        
-    except Exception as e:
-        logger.error(f"Failed to initialize server: {e}")
-        raise
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    """Clean up on shutdown."""
-    if session_manager and session_manager.current_session:
+    @mcp_server.list_resources()
+    async def list_resources() -> list:
+        return [
+            Resource(
+                uri="health://status",
+                name="Server Health",
+                description="Health check and server status",
+                mimeType="application/json"
+            )
+        ]
+    
+    @mcp_server.read_resource()
+    async def read_resource(uri: str) -> ReadResourceResult:
+        if uri == "health://status":
+            health_data = {
+                "status": "healthy",
+                "model_checkpoint": config.model_checkpoint,
+                "model_exists": Path(config.model_checkpoint).exists(),
+                "device": "mps" if torch.backends.mps.is_available() else "cpu",
+                "version": "1.0.0",
+                "session_active": session_manager.current_session is not None
+            }
+            
+            if session_manager.current_session:
+                health_data["session_id"] = session_manager.current_session.session_id
+                health_data["session_started_at"] = str(session_manager.current_session.started_at)
+            
+            return ReadResourceResult(
+                contents=[TextContent(
+                    type="text",
+                    text=json.dumps(health_data, indent=2)
+                )]
+            )
+        raise ValueError(f"Unknown resource: {uri}")
+    
+    @mcp_server.list_tools()
+    async def list_tools() -> list[Tool]:
+        return [
+            Tool(
+                name="start_first_crack_detection",
+                description="Start first crack detection monitoring",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "audio_source_type": {
+                            "type": "string",
+                            "enum": ["audio_file", "usb_microphone", "builtin_microphone"]
+                        },
+                        "audio_file_path": {"type": "string"},
+                        "detection_config": {"type": "object"}
+                    },
+                    "required": ["audio_source_type"]
+                }
+            ),
+            Tool(
+                name="get_first_crack_status",
+                description="Get current detection status",
+                inputSchema={"type": "object", "properties": {}}
+            ),
+            Tool(
+                name="stop_first_crack_detection",
+                description="Stop detection and get summary",
+                inputSchema={"type": "object", "properties": {}}
+            )
+        ]
+    
+    @mcp_server.call_tool()
+    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         try:
-            session_manager.stop_session()
-            logger.info("Active detection session stopped on shutdown")
+            if name == "start_first_crack_detection":
+                result = await handle_start_detection(arguments)
+            elif name == "get_first_crack_status":
+                result = await handle_get_status(arguments)
+            elif name == "stop_first_crack_detection":
+                result = await handle_stop_detection(arguments)
+            else:
+                result = {"error": f"Unknown tool: {name}"}
+            
+            return [TextContent(
+                type="text",
+                text=json.dumps(result, indent=2, default=str)
+            )]
         except Exception as e:
-            logger.warning(f"Error stopping session on shutdown: {e}")
+            logger.error(f"Tool error: {e}", exc_info=True)
+            return [TextContent(
+                type="text",
+                text=json.dumps({"error": str(e), "type": type(e).__name__}, indent=2)
+            )]
 
 
-# Public endpoints (no auth required)
+# Routes
 
-@app.get("/", tags=["public"])
-async def root():
-    """API information."""
-    return {
+async def root(request: Request):
+    """API info."""
+    return JSONResponse({
         "name": "First Crack Detection MCP Server",
         "version": "1.0.0",
-        "description": "MCP server with HTTP+SSE transport for remote access",
         "transport": "sse",
         "endpoints": {
-            "mcp_sse": "/sse (requires Auth0 JWT)",
-            "mcp_messages": "/messages (requires Auth0 JWT)",
-            "health": "/health (public)",
-            "docs": "/docs (public)"
-        },
-        "auth": {
-            "type": "Auth0 JWT",
-            "required_scopes": ["read:detection", "write:detection"],
-            "header": "Authorization: Bearer <token>"
-        },
-        "configuration": {
-            "warp_example": {
-                "mcpServers": {
-                    "first-crack-detection": {
-                        "url": "http://localhost:5001/sse",
-                        "transport": {"type": "sse"},
-                        "headers": {
-                            "Authorization": "Bearer YOUR_AUTH0_TOKEN"
-                        }
-                    }
-                }
-            }
+            "sse": "/sse (Auth0 JWT required)",
+            "messages": "/messages (Auth0 JWT required)",
+            "health": "/health (public)"
         }
-    }
+    })
 
 
-@app.get("/health", tags=["public"])
-async def health():
-    """Health check endpoint."""
+async def health(request: Request):
+    """Health check."""
     import torch
     from pathlib import Path
     
-    return {
+    return JSONResponse({
         "status": "healthy",
-        "model_checkpoint": config.model_checkpoint,
         "model_exists": Path(config.model_checkpoint).exists(),
         "device": "mps" if torch.backends.mps.is_available() else "cpu",
-        "version": "1.0.0",
-        "session_active": session_manager.current_session is not None,
-        "session_id": session_manager.current_session.session_id if session_manager.current_session else None
-    }
+        "session_active": session_manager.current_session is not None
+    })
 
 
-# MCP SSE endpoints (Auth0 protected)
-
-@app.get("/sse", tags=["mcp"])
-async def handle_sse(request: Request):
-    """
-    MCP Server-Sent Events endpoint.
+# Lifespan
+@asynccontextmanager
+async def lifespan(app):
+    """Initialize on startup, cleanup on shutdown."""
+    global session_manager, config
     
-    This is the main MCP transport endpoint. MCP clients connect here
-    to establish an SSE connection for bidirectional JSON-RPC communication.
+    # Startup
+    config = load_config()
+    setup_logging(config)
+    session_manager = DetectionSessionManager(config)
+    setup_mcp_server()
     
-    Requires Auth0 JWT with read:detection or write:detection scope.
-    """
-    from mcp.server.sse import SseServerTransport
+    logger.info("First Crack Detection MCP Server (HTTP+SSE) initialized")
+    logger.info(f"Model: {config.model_checkpoint}")
     
-    # Create SSE transport
-    transport = SseServerTransport("/messages")
+    yield
     
-    async def event_generator():
-        """Generate SSE events for MCP protocol."""
+    # Shutdown
+    if session_manager and session_manager.current_session:
         try:
-            async with transport.connect_sse(
-                request.scope,
-                request.receive,
-                None  # Send is handled by EventSourceResponse
-            ) as (read_stream, write_stream):
-                # Run MCP server with this transport
-                await mcp_server.run(
-                    read_stream,
-                    write_stream,
-                    mcp_server.create_initialization_options()
-                )
+            session_manager.stop_session()
         except Exception as e:
-            logger.error(f"SSE connection error: {e}", exc_info=True)
-            yield {
-                "event": "error",
-                "data": str(e)
-            }
-    
-    return EventSourceResponse(event_generator())
+            logger.warning(f"Shutdown error: {e}")
 
 
-@app.post("/messages", tags=["mcp"])
-async def handle_messages(request: Request):
-    """
-    MCP messages endpoint for client-to-server communication.
-    
-    MCP clients POST JSON-RPC messages here.
-    
-    Requires Auth0 JWT with read:detection or write:detection scope.
-    """
-    from mcp.server.sse import SseServerTransport
-    
-    transport = SseServerTransport("/messages")
-    
-    # Handle POST message
-    response = await transport.handle_post_message(
-        request.scope,
-        request.receive,
-        None
-    )
-    
-    return Response(
-        content=response.get("body", b""),
-        status_code=response.get("status", 200),
-        headers=dict(response.get("headers", []))
-    )
+# Create Starlette app
+sse_transport = SseServerTransport("/messages")
+
+app = Starlette(
+    debug=False,
+    routes=[
+        Route("/", root),
+        Route("/health", health),
+        Mount("/sse", app=sse_transport.connect_sse),
+        Mount("/messages", app=sse_transport.handle_post_message),
+    ],
+    middleware=[
+        Middleware(Auth0Middleware)
+    ],
+    lifespan=lifespan
+)
 
 
 if __name__ == "__main__":
     import uvicorn
-    
     port = int(os.getenv("FIRST_CRACK_DETECTION_PORT", "5001"))
     uvicorn.run(app, host="0.0.0.0", port=port)
