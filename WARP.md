@@ -67,3 +67,6 @@ This file provides guidance to WARP (warp.dev) when working with code in this re
 - Sliding-window detector API and MCP usage: src/inference/README.md.
 - Final model usage and deployment: experiments/final_model/README.md and DEPLOYMENT.md.
 - Evaluation workflow and versioning: evaluation/WORKFLOW.md; tools/README.md for helper scripts.
+- Historical phase plans and old results: docs/archive/
+- Testing scripts: scripts/testing/ (test_roaster_server.sh, test_hottop_*.py, etc.)
+- Development tools: scripts/dev_tools/ (generate_full_spectrogram.py, etc.)
