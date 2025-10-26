@@ -44,9 +44,9 @@ from .utils import setup_logging
 # Import shared Auth0 middleware
 from src.mcp_servers.shared.auth0_middleware import (
     validate_auth0_token,
-    check_user_scope,
-    get_user_info,
-    log_user_action
+    check_scope,
+    get_client_info,
+    log_client_action
 )
 
 
@@ -79,28 +79,28 @@ class Auth0Middleware(BaseHTTPMiddleware):
                 token = auth_header.replace("Bearer ", "")
                 payload = await validate_auth0_token(token)
                 
-                # Check scopes (user must have at least one detection scope)
-                has_read = check_user_scope(payload, "read:detection")
-                has_write = check_user_scope(payload, "write:detection")
+                # Check scopes (client must have at least one detection scope)
+                has_read = check_scope(payload, "read:detection")
+                has_write = check_scope(payload, "write:detection")
                 
                 if not (has_read or has_write):
-                    user = get_user_info(payload)
+                    client = get_client_info(payload)
                     return JSONResponse(
                         {
                             "error": "Insufficient permissions",
                             "required_scopes": ["read:detection OR write:detection"],
-                            "your_scopes": user["scopes"],
-                            "user_email": user["email"]
+                            "your_scopes": client["scopes"],
+                            "client_id": client["client_id"]
                         },
                         status_code=403
                     )
                 
-                # Store payload and user info in request state
+                # Store payload and client info in request state
                 request.state.auth = payload
-                request.state.user = get_user_info(payload)
+                request.state.client = get_client_info(payload)
                 
                 # Log connection
-                logger.info(f"MCP connection from user: {request.state.user['email']}")"
+                logger.info(f"MCP connection from client: {request.state.client['client_id']}")
                 
             except Exception as e:
                 logger.error(f"Auth error: {e}")

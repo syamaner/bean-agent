@@ -11,31 +11,31 @@ import time
 
 @pytest.fixture
 def mock_operator_token():
-    """Mock JWT for operator role (read + write)."""
+    """Mock M2M JWT for operator client (read + write scopes)."""
     return {
-        "sub": "auth0|operator123",
-        "email": "operator@coffee.local",
-        "name": "Jane Operator",
-        "scope": "read:roaster write:roaster",
-        "permissions": ["read:roaster", "write:roaster"],
-        "aud": "https://coffee-roasting-api",
         "iss": "https://test-tenant.auth0.com/",
-        "exp": int(time.time()) + 86400
+        "sub": "operator-client-id@clients",
+        "aud": "https://coffee-roasting-mcp",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 86400,
+        "gty": "client-credentials",
+        "azp": "operator-client-id",
+        "scope": "read:roaster write:roaster"
     }
 
 
 @pytest.fixture
 def mock_observer_token():
-    """Mock JWT for observer role (read-only)."""
+    """Mock M2M JWT for observer client (read-only scopes)."""
     return {
-        "sub": "auth0|observer123",
-        "email": "observer@coffee.local",
-        "name": "John Observer",
-        "scope": "read:roaster",
-        "permissions": ["read:roaster"],
-        "aud": "https://coffee-roasting-api",
         "iss": "https://test-tenant.auth0.com/",
-        "exp": int(time.time()) + 86400
+        "sub": "observer-client-id@clients",
+        "aud": "https://coffee-roasting-mcp",
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 86400,
+        "gty": "client-credentials",
+        "azp": "observer-client-id",
+        "scope": "read:roaster"
     }
 
 
@@ -61,14 +61,15 @@ def mock_config():
 
 def test_health_endpoint_public():
     """Test health check endpoint is accessible without auth."""
+    # Create a proper mock session manager
+    mock_sm = MagicMock()
+    mock_sm.is_active.return_value = False
+    mock_sm.get_hardware_info.return_value = {"type": "mock", "connected": False}
+    
     with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
          patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
          patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
-         patch('src.mcp_servers.roaster_control.sse_server.session_manager') as mock_sm:
-        
-        # Mock session manager
-        mock_sm.current_session = None
-        mock_sm.roaster = None
+         patch('src.mcp_servers.roaster_control.sse_server.session_manager', mock_sm):
         
         from src.mcp_servers.roaster_control.sse_server import app
         client = TestClient(app, raise_server_exceptions=False)
@@ -76,6 +77,8 @@ def test_health_endpoint_public():
         response = client.get("/health")
         assert response.status_code == 200
         assert response.json()["status"] == "healthy"
+        assert "session_active" in response.json()
+        assert "roaster_info" in response.json()
 
 
 def test_root_endpoint_public():
@@ -129,15 +132,16 @@ async def test_sse_endpoint_requires_roaster_scope(mock_observer_token):
         mock_sm.current_session = None
         mock_sm.roaster = None
         
-        # User with no roaster scopes
+        # Client with no roaster scopes
         mock_validate.return_value = {
-            "sub": "auth0|user123",
-            "email": "user@coffee.local",
-            "scope": "read:detection",  # Wrong scope!
-            "permissions": ["read:detection"],
-            "aud": "https://coffee-roasting-api",
             "iss": "https://test-tenant.auth0.com/",
-            "exp": int(time.time()) + 86400
+            "sub": "wrong-scope-client@clients",
+            "aud": "https://coffee-roasting-mcp",
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 86400,
+            "gty": "client-credentials",
+            "azp": "wrong-scope-client",
+            "scope": "read:detection"  # Wrong scope!
         }
         
         from src.mcp_servers.roaster_control.sse_server import app
@@ -199,11 +203,11 @@ async def test_operator_can_connect(mock_operator_token):
         assert response.status_code != 403
 
 
-# Test user audit logging
+# Test client audit logging
 
 @pytest.mark.asyncio
-async def test_user_connection_logged(mock_operator_token, caplog):
-    """Test that user connections are logged for audit."""
+async def test_client_connection_logged(mock_operator_token, caplog):
+    """Test that M2M client connections are logged for audit."""
     import logging
     caplog.set_level(logging.INFO)
     
@@ -230,8 +234,8 @@ async def test_user_connection_logged(mock_operator_token, caplog):
             headers={"Authorization": "Bearer fake.jwt.token"}
         )
         
-        # Check that user connection was logged
-        assert "operator@coffee.local" in caplog.text or "MCP connection" in caplog.text
+        # Check that client connection was logged
+        assert "operator-client-id" in caplog.text or "MCP connection" in caplog.text
 
 
 # Test MCP tools registration
@@ -262,15 +266,15 @@ async def test_rbac_scenario_observer_vs_operator_integration(mock_observer_toke
     Integration test: Observer can read, Operator can read and write.
     """
     # This is more of a documentation test showing the expected behavior
-    from src.mcp_servers.shared.auth0_middleware import check_user_scope
+    from src.mcp_servers.shared.auth0_middleware import check_scope
     
     # Observer has read:roaster
-    assert check_user_scope(mock_observer_token, "read:roaster") == True
-    assert check_user_scope(mock_observer_token, "write:roaster") == False
+    assert check_scope(mock_observer_token, "read:roaster") == True
+    assert check_scope(mock_observer_token, "write:roaster") == False
     
     # Operator has read:roaster + write:roaster
-    assert check_user_scope(mock_operator_token, "read:roaster") == True
-    assert check_user_scope(mock_operator_token, "write:roaster") == True
+    assert check_scope(mock_operator_token, "read:roaster") == True
+    assert check_scope(mock_operator_token, "write:roaster") == True
     
     # This demonstrates:
     # - Observer can view status (read_roaster_status tool)

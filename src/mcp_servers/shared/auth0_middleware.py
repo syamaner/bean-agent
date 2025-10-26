@@ -1,14 +1,15 @@
 """
 Auth0 JWT Validation Middleware
 
-User-based authentication with role-based access control (RBAC).
-Validates user JWT tokens and extracts user information for audit logging.
+Machine-to-Machine (M2M) authentication with role-based access control (RBAC).
+Validates M2M JWT tokens from client_credentials grant and extracts client
+information for audit logging.
 
 Usage:
     from src.mcp_servers.shared.auth0_middleware import (
         validate_auth0_token,
-        check_user_scope,
-        get_user_info
+        check_scope,
+        get_client_info
     )
 """
 import os
@@ -72,7 +73,7 @@ def get_jwks():
 
 async def validate_auth0_token(token: str) -> dict:
     """
-    Validate Auth0 user JWT token and return payload.
+    Validate Auth0 M2M JWT token (client_credentials grant) and return payload.
     
     Validates:
     - JWT signature using Auth0 public keys
@@ -84,17 +85,16 @@ async def validate_auth0_token(token: str) -> dict:
         token: JWT access token string
     
     Returns:
-        dict: Token payload containing user info and permissions
+        dict: Token payload containing client info and scopes
             {
-                "sub": "auth0|507f...",  # User ID
-                "email": "user@example.com",
-                "name": "John Doe",
-                "scope": "read:roaster write:roaster",
-                "permissions": ["read:roaster", "write:roaster"],
-                "aud": "https://coffee-roasting-api",
                 "iss": "https://your-tenant.auth0.com/",
-                "exp": 1730086400,
-                ...
+                "sub": "client-id@clients",
+                "aud": "https://coffee-roasting-mcp",
+                "iat": 1730086400,
+                "exp": 1730172800,
+                "gty": "client-credentials",
+                "azp": "client-id",
+                "scope": "read:roaster write:roaster"
             }
     
     Raises:
@@ -142,7 +142,8 @@ async def validate_auth0_token(token: str) -> dict:
             issuer=f"https://{AUTH0_DOMAIN}/"
         )
         
-        logger.debug(f"Token validated for user: {payload.get('email', 'unknown')}")
+        client_id = payload.get('azp', payload.get('sub', 'unknown'))
+        logger.debug(f"Token validated for client: {client_id}")
         return payload
         
     except jwt.ExpiredSignatureError:
@@ -153,167 +154,90 @@ async def validate_auth0_token(token: str) -> dict:
         raise JWTError(f"Token validation failed: {e}")
 
 
-def check_user_scope(payload: dict, required_scope: str) -> bool:
+def check_scope(payload: dict, required_scope: str) -> bool:
     """
-    Check if user token has required scope/permission.
+    Check if M2M client token has required scope.
     
-    Checks both 'scope' (space-separated string) and 'permissions' (array)
-    claims to support different Auth0 configurations.
+    Checks 'scope' claim (space-separated string) from client_credentials grant.
     
     Args:
-        payload: Decoded JWT payload
+        payload: Decoded M2M JWT payload
         required_scope: Scope to check (e.g., "write:roaster")
     
     Returns:
-        bool: True if user has the scope, False otherwise
+        bool: True if client has the scope, False otherwise
     
     Example:
         >>> token_payload = await validate_auth0_token(token)
-        >>> if check_user_scope(token_payload, "write:roaster"):
-        ...     # User can control roaster
+        >>> if check_scope(token_payload, "write:roaster"):
+        ...     # Client can control roaster
         ...     start_roaster()
     """
-    # Check 'scope' claim (space-separated string)
     scopes = payload.get("scope", "").split()
-    if required_scope in scopes:
-        return True
-    
-    # Check 'permissions' claim (array) - used when RBAC is enabled
-    permissions = payload.get("permissions", [])
-    if required_scope in permissions:
-        return True
-    
-    return False
+    return required_scope in scopes
 
 
-def get_user_info(payload: dict) -> dict:
+def get_client_info(payload: dict) -> dict:
     """
-    Extract user information from JWT payload for audit logging.
+    Extract client information from M2M JWT payload for audit logging.
     
     Args:
-        payload: Decoded JWT payload
+        payload: Decoded M2M JWT payload
     
     Returns:
-        dict: User information
+        dict: Client information
             {
-                "user_id": "auth0|507f...",
-                "email": "user@example.com",
-                "name": "John Doe",
-                "nickname": "john",
-                "picture": "https://...",
+                "client_id": "client-id-string",
+                "grant_type": "client-credentials",
                 "scopes": ["read:roaster", "write:roaster"]
             }
     
     Example:
         >>> token_payload = await validate_auth0_token(token)
-        >>> user = get_user_info(token_payload)
-        >>> logger.info(f"Action performed by {user['email']}")
+        >>> client = get_client_info(token_payload)
+        >>> logger.info(f"Action performed by client {client['client_id']}")
     """
-    # Extract scopes
     scopes = payload.get("scope", "").split()
-    permissions = payload.get("permissions", [])
-    all_scopes = list(set(scopes + permissions))
     
     return {
-        "user_id": payload.get("sub"),
-        "email": payload.get("email"),
-        "name": payload.get("name"),
-        "nickname": payload.get("nickname"),
-        "picture": payload.get("picture"),
-        "scopes": all_scopes
+        "client_id": payload.get("azp", payload.get("sub", "unknown")),
+        "grant_type": payload.get("gty", "unknown"),
+        "scopes": [s for s in scopes if s]  # Filter empty strings
     }
 
 
-def log_user_action(payload: dict, action: str, details: Optional[dict] = None):
+def log_client_action(payload: dict, action: str, details: Optional[dict] = None):
     """
-    Log user action for audit trail.
+    Log M2M client action for audit trail.
     
     Args:
-        payload: Decoded JWT payload
+        payload: Decoded M2M JWT payload
         action: Action performed (e.g., "roaster.start")
         details: Optional additional details
     
     Example:
         >>> token_payload = await validate_auth0_token(token)
-        >>> log_user_action(
+        >>> log_client_action(
         ...     token_payload,
         ...     "roaster.set_heat",
         ...     {"level": 75}
         ... )
     """
-    user = get_user_info(payload)
+    client = get_client_info(payload)
     
     log_data = {
         "action": action,
-        "user_id": user["user_id"],
-        "user_email": user["email"],
-        "user_name": user["name"],
+        "client_id": client["client_id"],
+        "grant_type": client["grant_type"],
     }
     
     if details:
         log_data["details"] = details
     
-    logger.info(f"User action: {log_data}")
+    logger.info(f"Client action: {log_data}")
 
 
-# FastAPI dependency helpers
-
-def requires_scope(required_scope: str):
-    """
-    FastAPI dependency decorator to require specific scope.
-    
-    Usage:
-        @app.post("/api/roaster/start")
-        @requires_scope("write:roaster")
-        async def start_roaster(token_payload: dict = Depends(validate_auth0_token)):
-            # Token validated and scope checked
-            user = get_user_info(token_payload)
-            logger.info(f"Roaster started by {user['email']}")
-            ...
-    """
-    def decorator(func):
-        from functools import wraps
-        
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Get token payload from request state
-            # (assumes middleware has already validated and stored it)
-            from fastapi import Request
-            
-            # Find Request in args/kwargs
-            request = None
-            for arg in args:
-                if isinstance(arg, Request):
-                    request = arg
-                    break
-            
-            if not request:
-                request = kwargs.get("request")
-            
-            if not request or not hasattr(request.state, "auth"):
-                from fastapi import HTTPException
-                raise HTTPException(
-                    status_code=401,
-                    detail="Authentication required"
-                )
-            
-            token_payload = request.state.auth
-            
-            # Check scope
-            if not check_user_scope(token_payload, required_scope):
-                from fastapi import HTTPException
-                user = get_user_info(token_payload)
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "error": "Insufficient permissions",
-                        "required_scope": required_scope,
-                        "user_scopes": user["scopes"],
-                        "user_email": user["email"]
-                    }
-                )
-            
-            return await func(*args, **kwargs)
-        
-        return wrapper
-    return decorator
+# Backward compatibility aliases
+check_user_scope = check_scope
+get_user_info = get_client_info
+log_user_action = log_client_action
