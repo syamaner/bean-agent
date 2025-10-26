@@ -40,6 +40,7 @@ from mcp.server.sse import SseServerTransport
 from .models import ServerConfig
 from .session_manager import RoastSessionManager
 from .hardware import MockRoaster
+from .demo_roaster import DemoRoaster
 
 # Import shared Auth0 middleware
 from src.mcp_servers.shared.auth0_middleware import (
@@ -48,6 +49,12 @@ from src.mcp_servers.shared.auth0_middleware import (
     get_client_info,
     log_client_action
 )
+
+# Import demo scenario
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from demo_scenario import get_demo_scenario
 
 
 # Global state
@@ -66,7 +73,7 @@ class Auth0Middleware(BaseHTTPMiddleware):
         if request.url.path in ["/", "/health"]:
             return await call_next(request)
         
-        # MCP endpoints require auth
+        # MCP endpoints require auth - but don't wrap the response
         if request.url.path.startswith("/sse") or request.url.path.startswith("/messages"):
             try:
                 auth_header = request.headers.get("Authorization", "")
@@ -101,6 +108,11 @@ class Auth0Middleware(BaseHTTPMiddleware):
                 
                 # Log connection
                 logger.info(f"MCP connection from client: {request.state.client['client_id']}")
+                
+                # IMPORTANT: Don't wrap SSE/streaming responses - return directly
+                # The BaseHTTPMiddleware wrapping causes issues with SSE protocol
+                response = await call_next(request)
+                return response
                 
             except Exception as e:
                 logger.error(f"Auth error: {e}")
@@ -263,9 +275,13 @@ def setup_mcp_server():
                         "timestamp": {
                             "type": "string",
                             "description": "ISO 8601 UTC timestamp when first crack occurred"
+                        },
+                        "temperature": {
+                            "type": "number",
+                            "description": "Bean temperature in °C at first crack"
                         }
                     },
-                    "required": ["timestamp"]
+                    "required": ["timestamp", "temperature"]
                 }
             )
         ]
@@ -314,7 +330,8 @@ def setup_mcp_server():
             elif name == "report_first_crack":
                 from datetime import datetime
                 timestamp = datetime.fromisoformat(arguments["timestamp"])
-                session_manager.report_first_crack(timestamp)
+                temperature = arguments.get("temperature")
+                session_manager.report_first_crack(timestamp, temperature)
                 result = {"status": "success", "message": "First crack reported"}
             else:
                 result = {"error": f"Unknown tool: {name}"}
@@ -358,8 +375,10 @@ async def root(request: Request):
 
 async def health(request: Request):
     """Health check."""
+    demo_scenario = get_demo_scenario()
     return JSONResponse({
         "status": "healthy",
+        "demo_mode": demo_scenario is not None,
         "session_active": session_manager.is_active(),
         "roaster_info": session_manager.get_hardware_info()
     })
@@ -372,22 +391,31 @@ async def lifespan(app):
     global session_manager, config
     
     # Startup
-    config = ServerConfig()
-    config.validate()
+    demo_scenario = get_demo_scenario()
+    demo_mode = demo_scenario is not None
     
-    # Create hardware (mock or real)
-    if config.hardware.mock_mode:
-        hardware = MockRoaster()
+    if demo_mode:
+        logger.info(f"Starting in DEMO MODE with scenario: {os.getenv('DEMO_SCENARIO', 'quick_roast')}")
+        config = ServerConfig()
+        # Skip validation in demo mode to allow missing hardware config
+        hardware = DemoRoaster(scenario=demo_scenario)
     else:
-        from .hardware import HottopRoaster
-        hardware = HottopRoaster(port=config.hardware.port)
+        config = ServerConfig()
+        config.validate()
+        
+        # Create hardware (mock or real)
+        if config.hardware.mock_mode:
+            hardware = MockRoaster()
+        else:
+            from .hardware import HottopRoaster
+            hardware = HottopRoaster(port=config.hardware.port)
     
     session_manager = RoastSessionManager(hardware, config)
     session_manager.start_session()  # Start session and polling
     setup_mcp_server()
     
     logger.info("Roaster Control MCP Server (HTTP+SSE) initialized")
-    logger.info(f"Mock mode: {config.hardware.mock_mode}")
+    logger.info(f"Demo mode: {demo_mode}, Mock mode: {config.hardware.mock_mode}")
     
     yield
     
@@ -408,7 +436,43 @@ sse_transport = SseServerTransport("/messages", security_settings)
 
 # SSE endpoint handler (as per MCP documentation)
 async def handle_sse(request: Request):
-    """Handle SSE connection and run MCP server."""
+    """Handle SSE connection and run MCP server with Auth0 validation."""
+    # Validate Auth0 token BEFORE starting SSE
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                {"error": "Missing or invalid Authorization header"},
+                status_code=401
+            )
+        
+        token = auth_header.replace("Bearer ", "")
+        payload = await validate_auth0_token(token)
+        
+        # Check scopes
+        has_read = check_scope(payload, "read:roaster")
+        has_write = check_scope(payload, "write:roaster")
+        
+        if not (has_read or has_write):
+            client = get_client_info(payload)
+            return JSONResponse(
+                {
+                    "error": "Insufficient permissions",
+                    "required_scopes": ["read:roaster OR write:roaster"],
+                    "your_scopes": client["scopes"]
+                },
+                status_code=403
+            )
+        
+        logger.info(f"SSE connection from client: {get_client_info(payload)['client_id']}")
+    except Exception as e:
+        logger.error(f"Auth error: {e}")
+        return JSONResponse(
+            {"error": f"Authentication failed: {str(e)}"},
+            status_code=401
+        )
+    
+    # Auth passed, establish SSE connection
     logger.info("SSE connection established, starting MCP server...")
     async with sse_transport.connect_sse(request.scope, request.receive, request._send) as streams:
         logger.info("Got streams, running MCP server...")
@@ -430,9 +494,7 @@ app = Starlette(
         Route("/sse", handle_sse, methods=["GET"]),
         Mount("/messages", app=sse_transport.handle_post_message),
     ],
-    middleware=[
-        Middleware(Auth0Middleware)
-    ],
+    # NO MIDDLEWARE - Auth handled in route handlers to avoid SSE issues
     lifespan=lifespan
 )
 

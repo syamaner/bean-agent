@@ -167,10 +167,15 @@ class RoastSessionManager:
         with self._lock:
             self._hardware.stop_cooling()
     
-    def report_first_crack(self, when: datetime, temp_c: float):
+    def report_first_crack(self, when: datetime, temp_c: Optional[float] = None):
         """Report first crack event to tracker."""
         with self._lock:
-            self._tracker.report_first_crack(when, temp_c)
+            # Use current temperature if not provided
+            if temp_c is None and self._latest_reading is not None:
+                temp_c = self._latest_reading.bean_temp_c
+            # Only report if we have a temperature
+            if temp_c is not None:
+                self._tracker.report_first_crack(when, temp_c)
     
     # ----- Status Queries -----
     def get_status(self) -> RoastStatus:

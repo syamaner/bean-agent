@@ -9,6 +9,7 @@ Transport: stdio (JSON-RPC over stdin/stdout)
 """
 import asyncio
 import logging
+import os
 from pathlib import Path
 
 from mcp.server import Server
@@ -29,6 +30,13 @@ from .models import (
     DetectionError,
 )
 from .utils import setup_logging
+from .mock_detector import MockFirstCrackDetector
+
+# Import demo scenario from shared location
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from demo_scenario import get_demo_scenario
 
 
 # Global state
@@ -36,6 +44,9 @@ server = Server("first-crack-detection")
 session_manager: DetectionSessionManager = None
 config = None
 logger = logging.getLogger(__name__)
+demo_mode = False
+mock_detector: MockFirstCrackDetector = None
+demo_scenario = None
 
 
 def register_tools():
@@ -63,11 +74,12 @@ def register_tools():
             
             health_data = {
                 "status": "healthy",
-                "model_checkpoint": config.model_checkpoint,
-                "model_exists": Path(config.model_checkpoint).exists(),
+                "model_checkpoint": config.model_checkpoint if not demo_mode else "demo_mode",
+                "model_exists": Path(config.model_checkpoint).exists() if not demo_mode else True,
                 "device": "mps" if torch.backends.mps.is_available() else "cpu",
                 "version": "1.0.0",
-                "session_active": session_manager.current_session is not None
+                "demo_mode": demo_mode,
+                "session_active": (session_manager.current_session is not None) if not demo_mode else (mock_detector.is_running if mock_detector else False)
             }
             
             if session_manager.current_session:
@@ -181,6 +193,30 @@ def register_tools():
 async def handle_start_detection(arguments: dict) -> dict:
     """Handle start_first_crack_detection tool call."""
     try:
+        if demo_mode:
+            # Demo mode: use mock detector
+            if mock_detector.is_running:
+                return {
+                    "status": "error",
+                    "error": {
+                        "code": "SESSION_ALREADY_ACTIVE",
+                        "message": "Detection already running in demo mode"
+                    }
+                }
+            
+            mock_detector.start()
+            
+            return {
+                "status": "success",
+                "result": {
+                    "session_id": "demo_session",
+                    "started_at": str(mock_detector.first_crack_time) if mock_detector.first_crack_time else None,
+                    "audio_source": "demo_mode",
+                    "demo_mode": True
+                }
+            }
+        
+        # Real mode: use session manager
         # Parse audio config
         audio_config = AudioConfig(
             audio_source_type=arguments["audio_source_type"],
@@ -223,6 +259,15 @@ async def handle_start_detection(arguments: dict) -> dict:
 async def handle_get_status(arguments: dict) -> dict:
     """Handle get_first_crack_status tool call."""
     try:
+        if demo_mode:
+            # Demo mode: return mock detector status
+            status = mock_detector.get_status()
+            return {
+                "status": "success",
+                "result": status
+            }
+        
+        # Real mode
         status = session_manager.get_status()
         
         return {
@@ -253,6 +298,15 @@ async def handle_get_status(arguments: dict) -> dict:
 async def handle_stop_detection(arguments: dict) -> dict:
     """Handle stop_first_crack_detection tool call."""
     try:
+        if demo_mode:
+            # Demo mode: stop mock detector
+            summary = mock_detector.stop()
+            return {
+                "status": "success",
+                "result": summary
+            }
+        
+        # Real mode
         summary = session_manager.stop_session()
         
         return {
@@ -275,24 +329,38 @@ async def main():
     """
     Run the MCP server with stdio transport.
     """
-    global session_manager, config
+    global session_manager, config, demo_mode, mock_detector, demo_scenario
     
-    # Load configuration
-    try:
-        config = load_config()
-        setup_logging(config)
-        logger.info(f"Loaded configuration: {config.model_checkpoint}")
-    except Exception as e:
-        logger.error(f"Failed to load configuration: {e}")
-        raise
+    # Debug: Check environment
+    import os
+    logger.info(f"DEMO_MODE env var: {os.getenv('DEMO_MODE', 'NOT SET')}")
     
-    # Initialize session manager
-    try:
-        session_manager = DetectionSessionManager(config)
-        logger.info("DetectionSessionManager initialized")
-    except Exception as e:
-        logger.error(f"Failed to initialize session manager: {e}")
-        raise
+    # Check for demo mode from shared scenario
+    demo_scenario = get_demo_scenario()
+    demo_mode = demo_scenario is not None
+    logger.info(f"Demo mode active: {demo_mode}, scenario: {demo_scenario}")
+    
+    if demo_mode:
+        logger.info(f"Starting in DEMO MODE - FC at {demo_scenario.fc_trigger_time}s")
+        mock_detector = MockFirstCrackDetector(fc_trigger_time=demo_scenario.fc_trigger_time)
+        config = type('Config', (), {'model_checkpoint': 'demo_mode'})()
+    else:
+        # Load configuration
+        try:
+            config = load_config()
+            setup_logging(config)
+            logger.info(f"Loaded configuration: {config.model_checkpoint}")
+        except Exception as e:
+            logger.error(f"Failed to load configuration: {e}")
+            raise
+        
+        # Initialize session manager
+        try:
+            session_manager = DetectionSessionManager(config)
+            logger.info("DetectionSessionManager initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize session manager: {e}")
+            raise
     
     # Register tools
     register_tools()
