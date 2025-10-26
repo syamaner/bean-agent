@@ -18,11 +18,16 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
 
-# Auth0 Configuration (from Aspire environment)
-AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "genai-7175210165555426.uk.auth0.com")
-AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID", "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7")
-AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET", "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k")
+# Auth0 Configuration (from environment variables)
+# IMPORTANT: Set these as environment variables - do NOT hardcode credentials
+# Use: source ./set_env.sh
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "https://coffee-roasting-api")
+
+if not all([AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET]):
+    raise ValueError("AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET must be set. Run: source ./set_env.sh")
 
 # MCP Server URLs (from Aspire service references)
 # Aspire injects these as services__<service-name>__http__0 or https__0

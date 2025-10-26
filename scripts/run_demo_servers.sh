@@ -13,9 +13,15 @@ echo ""
 export DEMO_MODE=true
 export DEMO_SCENARIO=quick_roast
 
-# Auth0 configuration
-export AUTH0_DOMAIN="genai-7175210165555426.uk.auth0.com"
-export AUTH0_AUDIENCE="https://coffee-roasting-api"
+# Auth0 configuration (should be set from set_env.sh)
+# Verify required env vars are set
+if [ -z "$AUTH0_DOMAIN" ] || [ -z "$AUTH0_CLIENT_ID" ] || [ -z "$AUTH0_CLIENT_SECRET" ]; then
+    echo "❌ Error: Auth0 environment variables not set"
+    echo "   Please run: source ./set_env.sh"
+    exit 1
+fi
+
+export AUTH0_AUDIENCE="${AUTH0_AUDIENCE:-https://coffee-roasting-api}"
 
 # Kill any existing servers on these ports
 echo "🧹 Cleaning up existing servers..."

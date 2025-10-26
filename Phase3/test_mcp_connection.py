@@ -10,11 +10,16 @@ import traceback
 from mcp.client.sse import sse_client
 from mcp import ClientSession
 
-# Auth0 Configuration
-AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN", "genai-7175210165555426.uk.auth0.com")
-AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID", "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7")
-AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET", "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k")
+# Auth0 Configuration (from environment variables)
+# IMPORTANT: Set these as environment variables - do NOT hardcode credentials  
+# Use: source ./set_env.sh
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+AUTH0_CLIENT_ID = os.getenv("AUTH0_CLIENT_ID")
+AUTH0_CLIENT_SECRET = os.getenv("AUTH0_CLIENT_SECRET")
 AUTH0_AUDIENCE = os.getenv("AUTH0_AUDIENCE", "https://coffee-roasting-api")
+
+if not all([AUTH0_DOMAIN, AUTH0_CLIENT_ID, AUTH0_CLIENT_SECRET]):
+    raise ValueError("AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET must be set. Run: source ./set_env.sh")
 
 # MCP Server URLs
 ROASTER_URL = os.getenv("services__roaster-control__http__0", "http://localhost:5002")
