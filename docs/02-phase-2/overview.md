@@ -9,7 +9,7 @@ Relevant files are:
 
 ## Phase 2 Objectives:
 
-### Objective 1 - Wrap Inference pipeline as an MCP Server to be exposed using HTTP
+### Objective 1 - Wrap Inference pipeline as an MCP Server ✅ COMPLETE
 
 - Build an MCP server that will wrap the inference pipeline as a long running process.
   - We already have the [inference pipeline](../../src/inference/first_crack_detector.py) supporting our requirements.
@@ -36,7 +36,7 @@ Relevant files are:
       - Roast Admin role: this allows full access to all tools.
       - Roast Observer role: This allows calling is_first_crack tool.
 
-## OBJECTIVE 2 - Build an MCP tool to control Hottop Roaster
+### Objective 2 - Build an MCP tool to control Hottop Roaster ✅ COMPLETE
 
 - Relevant links:
   - [Hottop KN8828B-2K+ product page](https://www.hottopamericas.com/KN-8828B-2Kplus.html)
