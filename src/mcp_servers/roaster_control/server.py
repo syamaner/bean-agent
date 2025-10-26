@@ -1,4 +1,7 @@
 """MCP server for roaster control."""
+import os
+import sys
+from pathlib import Path
 from datetime import datetime
 from typing import Optional
 from mcp.server import Server
@@ -6,12 +9,19 @@ from mcp.types import Tool, TextContent, Resource
 
 from .session_manager import RoastSessionManager
 from .hardware import MockRoaster
+from .demo_roaster import DemoRoaster
 from .models import ServerConfig
 from .exceptions import RoasterError
+
+# Import demo scenario from shared location
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from demo_scenario import get_demo_scenario
 
 # Global state
 _session_manager: Optional[RoastSessionManager] = None
 _config: Optional[ServerConfig] = None
+_demo_mode: bool = False
+_demo_scenario = None
 
 # Create MCP server
 server = Server("roaster-control")
@@ -26,18 +36,25 @@ def init_server(config: Optional[ServerConfig] = None) -> None:
     Raises:
         ValueError: If configuration is invalid
     """
-    global _session_manager, _config
+    global _session_manager, _config, _demo_mode, _demo_scenario
+    
+    # Check for demo mode from shared scenario
+    _demo_scenario = get_demo_scenario()
+    _demo_mode = _demo_scenario is not None
     
     if config is None:
         config = ServerConfig()
     
-    # Validate configuration
-    config.validate()
+    # Validate configuration (skip some checks in demo mode)
+    if not _demo_mode:
+        config.validate()
     
     _config = config
     
-    # Create hardware (mock or real based on config)
-    if _config.hardware.mock_mode:
+    # Create hardware (demo/mock/real based on config and scenario)
+    if _demo_mode:
+        hardware = DemoRoaster(scenario=_demo_scenario)
+    elif _config.hardware.mock_mode:
         hardware = MockRoaster()
     else:
         from .hardware import HottopRoaster
@@ -58,14 +75,14 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "percent": {
+                    "level": {
                         "type": "integer",
                         "description": "Heat level percentage (0-100 in 10% increments)",
                         "minimum": 0,
                         "maximum": 100
                     }
                 },
-                "required": ["percent"]
+                "required": ["level"]
             }
         ),
         Tool(
@@ -74,14 +91,14 @@ async def list_tools() -> list[Tool]:
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "percent": {
+                    "speed": {
                         "type": "integer",
                         "description": "Fan speed percentage (0-100 in 10% increments)",
                         "minimum": 0,
                         "maximum": 100
                     }
                 },
-                "required": ["percent"]
+                "required": ["speed"]
             }
         ),
         Tool(
@@ -164,19 +181,19 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     
     try:
         if name == "set_heat":
-            percent = arguments["percent"]
-            _session_manager.set_heat(percent)
+            level = arguments["level"]
+            _session_manager.set_heat(level)
             return [TextContent(
                 type="text",
-                text=f"Heat set to {percent}%"
+                text=f"Heat set to {level}%"
             )]
         
         elif name == "set_fan":
-            percent = arguments["percent"]
-            _session_manager.set_fan(percent)
+            speed = arguments["speed"]
+            _session_manager.set_fan(speed)
             return [TextContent(
                 type="text",
-                text=f"Fan set to {percent}%"
+                text=f"Fan set to {speed}%"
             )]
         
         elif name == "start_roaster":
@@ -298,10 +315,13 @@ async def read_resource(uri: str) -> str:
     if uri == "health://status":
         import json
         
+        hardware_mode = "demo" if _demo_mode else ("mock" if _config.hardware.mock_mode else "real")
+        
         health_data = {
             "status": "healthy",
             "version": "1.0.0",
-            "hardware_mode": "mock" if _config.hardware.mock_mode else "real",
+            "hardware_mode": hardware_mode,
+            "demo_mode": _demo_mode,
             "session_active": _session_manager.is_active() if _session_manager else False,
             "roaster_info": _session_manager.get_hardware_info() if _session_manager else None
         }

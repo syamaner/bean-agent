@@ -40,6 +40,7 @@ from mcp.server.sse import SseServerTransport
 from .config import load_config
 from .session_manager import DetectionSessionManager
 from .utils import setup_logging
+from .mock_detector import MockFirstCrackDetector
 
 # Import shared Auth0 middleware
 from src.mcp_servers.shared.auth0_middleware import (
@@ -49,12 +50,20 @@ from src.mcp_servers.shared.auth0_middleware import (
     log_client_action
 )
 
+# Import demo scenario
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from demo_scenario import get_demo_scenario
+
 
 # Global state
 mcp_server = Server("first-crack-detection")
 session_manager: DetectionSessionManager = None
 config = None
 logger = logging.getLogger(__name__)
+demo_mode = False
+mock_detector: MockFirstCrackDetector = None
 
 
 # Auth0 Middleware
@@ -66,7 +75,7 @@ class Auth0Middleware(BaseHTTPMiddleware):
         if request.url.path in ["/", "/health"]:
             return await call_next(request)
         
-        # MCP endpoints require auth
+        # MCP endpoints require auth - but don't wrap the response
         if request.url.path.startswith("/sse") or request.url.path.startswith("/messages"):
             try:
                 auth_header = request.headers.get("Authorization", "")
@@ -102,6 +111,11 @@ class Auth0Middleware(BaseHTTPMiddleware):
                 # Log connection
                 logger.info(f"MCP connection from client: {request.state.client['client_id']}")
                 
+                # IMPORTANT: Don't wrap SSE/streaming responses - return directly
+                # The BaseHTTPMiddleware wrapping causes issues with SSE protocol
+                response = await call_next(request)
+                return response
+                
             except Exception as e:
                 logger.error(f"Auth error: {e}")
                 return JSONResponse(
@@ -115,11 +129,20 @@ class Auth0Middleware(BaseHTTPMiddleware):
 # Setup MCP tools
 def setup_mcp_server():
     """Register MCP tools and resources."""
+    # Import server module to share globals
+    from . import server as server_module
     from .server import (
         handle_start_detection,
         handle_get_status,
         handle_stop_detection
     )
+    
+    # CRITICAL: Share our globals with server.py handlers
+    server_module.demo_mode = demo_mode
+    server_module.mock_detector = mock_detector
+    server_module.session_manager = session_manager
+    server_module.config = config
+    
     from mcp.types import Tool, TextContent, Resource, ReadResourceResult
     from pathlib import Path
     import json
@@ -236,28 +259,45 @@ async def health(request: Request):
     import torch
     from pathlib import Path
     
-    return JSONResponse({
+    demo_scenario = get_demo_scenario()
+    is_demo = demo_scenario is not None
+    
+    health_data = {
         "status": "healthy",
-        "model_exists": Path(config.model_checkpoint).exists(),
-        "device": "mps" if torch.backends.mps.is_available() else "cpu",
-        "session_active": session_manager.current_session is not None
-    })
+        "demo_mode": is_demo,
+        "session_active": (session_manager.current_session is not None) if not is_demo else (mock_detector.is_running if mock_detector else False)
+    }
+    
+    if not is_demo:
+        health_data["model_exists"] = Path(config.model_checkpoint).exists()
+        health_data["device"] = "mps" if torch.backends.mps.is_available() else "cpu"
+    
+    return JSONResponse(health_data)
 
 
 # Lifespan
 @asynccontextmanager
 async def lifespan(app):
     """Initialize on startup, cleanup on shutdown."""
-    global session_manager, config
+    global session_manager, config, demo_mode, mock_detector
     
-    # Startup
-    config = load_config()
-    setup_logging(config)
-    session_manager = DetectionSessionManager(config)
+    # Startup - check for demo mode
+    demo_scenario = get_demo_scenario()
+    demo_mode = demo_scenario is not None
+    
+    if demo_mode:
+        logger.info(f"Starting in DEMO MODE with scenario: {os.getenv('DEMO_SCENARIO', 'quick_roast')}")
+        logger.info(f"FC will auto-trigger at {demo_scenario.fc_trigger_time}s")
+        mock_detector = MockFirstCrackDetector(fc_trigger_time=demo_scenario.fc_trigger_time)
+        config = type('Config', (), {'model_checkpoint': 'demo_mode'})()
+    else:
+        config = load_config()
+        setup_logging(config)
+        session_manager = DetectionSessionManager(config)
+        logger.info(f"Model: {config.model_checkpoint}")
+    
     setup_mcp_server()
-    
     logger.info("First Crack Detection MCP Server (HTTP+SSE) initialized")
-    logger.info(f"Model: {config.model_checkpoint}")
     
     yield
     
@@ -278,7 +318,43 @@ sse_transport = SseServerTransport("/messages", security_settings)
 
 # SSE endpoint handler (as per MCP documentation)  
 async def handle_sse(request: Request):
-    """Handle SSE connection and run MCP server."""
+    """Handle SSE connection and run MCP server with Auth0 validation."""
+    # Validate Auth0 token BEFORE starting SSE
+    try:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return JSONResponse(
+                {"error": "Missing or invalid Authorization header"},
+                status_code=401
+            )
+        
+        token = auth_header.replace("Bearer ", "")
+        payload = await validate_auth0_token(token)
+        
+        # Check scopes
+        has_read = check_scope(payload, "read:detection")
+        has_write = check_scope(payload, "write:detection")
+        
+        if not (has_read or has_write):
+            client = get_client_info(payload)
+            return JSONResponse(
+                {
+                    "error": "Insufficient permissions",
+                    "required_scopes": ["read:detection OR write:detection"],
+                    "your_scopes": client["scopes"]
+                },
+                status_code=403
+            )
+        
+        logger.info(f"SSE connection from client: {get_client_info(payload)['client_id']}")
+    except Exception as e:
+        logger.error(f"Auth error: {e}")
+        return JSONResponse(
+            {"error": f"Authentication failed: {str(e)}"},
+            status_code=401
+        )
+    
+    # Auth passed, establish SSE connection
     async with sse_transport.connect_sse(request.scope, request.receive, request._send) as streams:
         await mcp_server.run(
             streams[0],  # read stream  
@@ -296,9 +372,7 @@ app = Starlette(
         Route("/sse", handle_sse, methods=["GET"]),
         Mount("/messages", app=sse_transport.handle_post_message),
     ],
-    middleware=[
-        Middleware(Auth0Middleware)
-    ],
+    # NO MIDDLEWARE - Auth handled in route handlers to avoid SSE issues
     lifespan=lifespan
 )
 

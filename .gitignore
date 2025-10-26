@@ -58,6 +58,7 @@ data/splits/**/*.wav
 *.log
 logs/
 tensorboard/
+roast_log_*.json
 
 # OS
 .DS_Store
