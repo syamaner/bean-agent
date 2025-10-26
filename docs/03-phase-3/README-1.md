@@ -115,7 +115,7 @@ curl -s -X POST https://genai-7175210165555426.uk.auth0.com/oauth/token \
   -H 'Content-Type: application/json' \
   -d '{
     "client_id": "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7",
-    "client_secret": "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k",
+    "client_secret": "YOUR_AUTH0_CLIENT_SECRET",
     "audience": "https://coffee-roasting-api",
     "grant_type": "client_credentials"
   }' | python3 -c "import sys, json; print(json.load(sys.stdin)['access_token'])"

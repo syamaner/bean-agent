@@ -22,7 +22,7 @@
             },
             {
               "name": "client_secret",
-              "value": "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k"
+              "value": "YOUR_AUTH0_CLIENT_SECRET"
             },
             {
               "name": "audience",

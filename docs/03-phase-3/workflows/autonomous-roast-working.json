@@ -17,7 +17,7 @@
         "bodyParameters": {
           "parameters": [
             {"name": "client_id", "value": "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7"},
-            {"name": "client_secret", "value": "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k"},
+            {"name": "client_secret", "value": "YOUR_AUTH0_CLIENT_SECRET"},
             {"name": "audience", "value": "https://coffee-roasting-api"},
             {"name": "grant_type", "value": "client_credentials"}
           ]

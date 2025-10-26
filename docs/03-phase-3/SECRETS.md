@@ -53,7 +53,7 @@ AUTH0_AUDIENCE=https://coffee-roasting-api
 
 # For testing only (do not use in production)
 AUTH0_CLIENT_ID=Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7
-AUTH0_CLIENT_SECRET=05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k
+AUTH0_CLIENT_SECRET=YOUR_AUTH0_CLIENT_SECRET
 ```
 
 ### 2. Roaster Control MCP

@@ -38,7 +38,7 @@ Check these settings:
 - **URL**: `https://genai-7175210165555426.uk.auth0.com/oauth/token`
 - **Body Parameters** (should have 4):
   - `client_id`: Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7
-  - `client_secret`: 05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k
+  - `client_secret`: YOUR_AUTH0_CLIENT_SECRET
   - `audience`: https://coffee-roasting-api
   - `grant_type`: client_credentials
 
@@ -219,7 +219,7 @@ See [N8N_MCP_SETUP.md](./N8N_MCP_SETUP.md) for AI Agent configuration.
 POST https://genai-7175210165555426.uk.auth0.com/oauth/token
 {
   "client_id": "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7",
-  "client_secret": "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k",
+  "client_secret": "YOUR_AUTH0_CLIENT_SECRET",
   "audience": "https://coffee-roasting-api",
   "grant_type": "client_credentials"
 }
