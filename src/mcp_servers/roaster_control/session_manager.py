@@ -128,26 +128,31 @@ class RoastSessionManager:
     # ----- Control Commands -----
     def set_heat(self, percent: int):
         """Set heat level."""
+        logger.info(f"🔥 COMMAND: set_heat({percent}%)")
         with self._lock:
             self._hardware.set_heat(percent)
     
     def set_fan(self, percent: int):
         """Set fan speed."""
+        logger.info(f"💨 COMMAND: set_fan({percent}%)")
         with self._lock:
             self._hardware.set_fan(percent)
     
     def start_roaster(self):
         """Start roaster drum."""
+        logger.warning(f"▶️  COMMAND: start_drum() - STARTING ROASTER")
         with self._lock:
             self._hardware.start_drum()
     
     def stop_roaster(self):
         """Stop roaster drum."""
+        logger.warning(f"⏹️  COMMAND: stop_drum() - STOPPING ROASTER")
         with self._lock:
             self._hardware.stop_drum()
     
     def drop_beans(self):
         """Drop beans and record in tracker."""
+        logger.warning(f"⬇️  COMMAND: drop_beans() - DROPPING BEANS")
         with self._lock:
             self._hardware.drop_beans()
             # Record drop with current temperature
@@ -159,11 +164,13 @@ class RoastSessionManager:
     
     def start_cooling(self):
         """Start cooling fan."""
+        logger.info(f"❄️  COMMAND: start_cooling()")
         with self._lock:
             self._hardware.start_cooling()
     
     def stop_cooling(self):
         """Stop cooling fan."""
+        logger.info(f"🔇 COMMAND: stop_cooling()")
         with self._lock:
             self._hardware.stop_cooling()
     

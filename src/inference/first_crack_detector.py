@@ -57,10 +57,10 @@ class FirstCrackDetector:
         model_config: Optional[ModelInitConfig] = None,
         window_size: float = 10.0,
         overlap: float = 0.7,
-        threshold: float = 0.5,
+        threshold: float = 0.6,  # Increased from 0.5 to reduce false positives
         sample_rate: int = 16000,
-        min_pops: int = 3,
-        confirmation_window: float = 30.0,
+        min_pops: int = 5,  # Increased from 3 to require more consistent detection
+        confirmation_window: float = 20.0,  # Reduced from 30 for faster detection
     ):
         """
         Initialize the first crack detector.
@@ -295,6 +295,13 @@ class FirstCrackDetector:
         Returns:
             First crack probability (0-1)
         """
+        # Energy-based noise gate: reject silent/quiet audio
+        # First crack pops have RMS energy > 0.01 typically
+        rms_energy = np.sqrt(np.mean(window ** 2))
+        if rms_energy < 0.01:
+            # Too quiet to be first crack - skip inference
+            return 0.0
+        
         # Convert to tensor
         audio_tensor = torch.FloatTensor(window).unsqueeze(0)
         

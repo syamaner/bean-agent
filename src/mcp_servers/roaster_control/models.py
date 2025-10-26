@@ -29,10 +29,10 @@ class RoastMetrics(BaseModel):
 
 class HardwareConfig(BaseModel):
     """Hardware configuration."""
-    port: str = "/dev/tty.usbserial-1420"
+    port: str = "/dev/tty.usbserial-DN016OJ3"
     baud_rate: int = Field(115200, gt=0, le=921600)  # Valid baud rate range
     timeout: float = Field(1.0, gt=0, le=60.0)  # Reasonable timeout range
-    mock_mode: bool = True  # Default to mock for safety
+    mock_mode: bool = False  # Default to real hardware
     
     @field_validator('baud_rate')
     @classmethod

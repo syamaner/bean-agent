@@ -6,9 +6,8 @@ var builder = DistributedApplication.CreateBuilder(args);
 var auth0Domain = builder.AddParameter("auth0-domain");
 var auth0Audience = builder.AddParameter("auth0-audience");
 
-// Demo mode parameters (optional)
-var demoMode = builder.AddParameter("demo-mode", secret: false);
-var demoScenario = builder.AddParameter("demo-scenario", secret: false);
+// Optional mock mode for testing without hardware
+var useMockHardware = builder.AddParameter("use-mock-hardware", "false", secret: false);
 
 // Python MCP Servers (relative to git root)
 // Note: Using shared venv at repo root, running servers as modules to support relative imports
@@ -25,9 +24,7 @@ var roasterControl = builder.AddPythonApp(
     .WithHttpEndpoint(port: 5002, env: "ROASTER_CONTROL_PORT")
     .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
     .WithEnvironment("AUTH0_AUDIENCE", auth0Audience)
-    .WithEnvironment("ROASTER_MOCK_MODE", "1")
-    .WithEnvironment("DEMO_MODE", demoMode)
-    .WithEnvironment("DEMO_SCENARIO", demoScenario);
+    .WithEnvironment("USE_MOCK_HARDWARE", useMockHardware);
 
 var firstCrackDetection = builder.AddPythonApp(
         "first-crack-detection",
@@ -37,9 +34,7 @@ var firstCrackDetection = builder.AddPythonApp(
     .WithArgs("src.mcp_servers.first_crack_detection.sse_server")
     .WithHttpEndpoint(port: 5001, env: "FIRST_CRACK_DETECTION_PORT")
     .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
-    .WithEnvironment("AUTH0_AUDIENCE", auth0Audience)
-    .WithEnvironment("DEMO_MODE", demoMode)
-    .WithEnvironment("DEMO_SCENARIO", demoScenario);
+    .WithEnvironment("AUTH0_AUDIENCE", auth0Audience);
 
 #pragma warning restore ASPIREHOSTINGPYTHON001
 

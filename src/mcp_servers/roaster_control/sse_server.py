@@ -40,7 +40,6 @@ from mcp.server.sse import SseServerTransport
 from .models import ServerConfig
 from .session_manager import RoastSessionManager
 from .hardware import MockRoaster
-from .demo_roaster import DemoRoaster
 
 # Import shared Auth0 middleware
 from src.mcp_servers.shared.auth0_middleware import (
@@ -49,12 +48,6 @@ from src.mcp_servers.shared.auth0_middleware import (
     get_client_info,
     log_client_action
 )
-
-# Import demo scenario
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from demo_scenario import get_demo_scenario
 
 
 # Global state
@@ -375,10 +368,8 @@ async def root(request: Request):
 
 async def health(request: Request):
     """Health check."""
-    demo_scenario = get_demo_scenario()
     return JSONResponse({
         "status": "healthy",
-        "demo_mode": demo_scenario is not None,
         "session_active": session_manager.is_active(),
         "roaster_info": session_manager.get_hardware_info()
     })
@@ -391,31 +382,26 @@ async def lifespan(app):
     global session_manager, config
     
     # Startup
-    demo_scenario = get_demo_scenario()
-    demo_mode = demo_scenario is not None
+    config = ServerConfig()
     
-    if demo_mode:
-        logger.info(f"Starting in DEMO MODE with scenario: {os.getenv('DEMO_SCENARIO', 'quick_roast')}")
-        config = ServerConfig()
-        # Skip validation in demo mode to allow missing hardware config
-        hardware = DemoRoaster(scenario=demo_scenario)
+    # Simple mock flag for testing without hardware
+    use_mock = os.getenv("USE_MOCK_HARDWARE", "false").lower() == "true"
+    
+    if use_mock:
+        logger.info("Starting with MockRoaster (for testing)")
+        hardware = MockRoaster()
     else:
-        config = ServerConfig()
+        logger.info("Starting with real Hottop hardware")
         config.validate()
-        
-        # Create hardware (mock or real)
-        if config.hardware.mock_mode:
-            hardware = MockRoaster()
-        else:
-            from .hardware import HottopRoaster
-            hardware = HottopRoaster(port=config.hardware.port)
+        from .hardware import HottopRoaster
+        hardware = HottopRoaster(port=config.hardware.port)
     
     session_manager = RoastSessionManager(hardware, config)
     session_manager.start_session()  # Start session and polling
     setup_mcp_server()
     
     logger.info("Roaster Control MCP Server (HTTP+SSE) initialized")
-    logger.info(f"Demo mode: {demo_mode}, Mock mode: {config.hardware.mock_mode}")
+    logger.info(f"Mock mode: {use_mock}")
     
     yield
     

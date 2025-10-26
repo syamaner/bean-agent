@@ -11,8 +11,7 @@
         "DOTNET_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21240",
         "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22130",
-        "Parameters__demo-mode": "false",
-        "Parameters__demo-scenario": "quick_roast"
+        "Parameters__use-mock-hardware": "false"
       }
     },
     "http": {
@@ -25,11 +24,10 @@
         "DOTNET_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19065",
         "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20133",
-        "Parameters__demo-mode": "false",
-        "Parameters__demo-scenario": "quick_roast"
+        "Parameters__use-mock-hardware": "false"
       }
     },
-    "demo": {
+    "mock": {
       "commandName": "Project",
       "dotnetRunMessages": true,
       "launchBrowser": true,
@@ -39,8 +37,7 @@
         "DOTNET_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19065",
         "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20133",
-        "Parameters__demo-mode": "true",
-        "Parameters__demo-scenario": "quick_roast"
+        "Parameters__use-mock-hardware": "true"
       }
     }
   }

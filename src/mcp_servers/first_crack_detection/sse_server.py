@@ -40,7 +40,6 @@ from mcp.server.sse import SseServerTransport
 from .config import load_config
 from .session_manager import DetectionSessionManager
 from .utils import setup_logging
-from .mock_detector import MockFirstCrackDetector
 
 # Import shared Auth0 middleware
 from src.mcp_servers.shared.auth0_middleware import (
@@ -50,20 +49,11 @@ from src.mcp_servers.shared.auth0_middleware import (
     log_client_action
 )
 
-# Import demo scenario
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from demo_scenario import get_demo_scenario
-
-
 # Global state
 mcp_server = Server("first-crack-detection")
 session_manager: DetectionSessionManager = None
 config = None
 logger = logging.getLogger(__name__)
-demo_mode = False
-mock_detector: MockFirstCrackDetector = None
 
 
 # Auth0 Middleware
@@ -137,9 +127,7 @@ def setup_mcp_server():
         handle_stop_detection
     )
     
-    # CRITICAL: Share our globals with server.py handlers
-    server_module.demo_mode = demo_mode
-    server_module.mock_detector = mock_detector
+    # Share globals with server.py handlers
     server_module.session_manager = session_manager
     server_module.config = config
     
@@ -259,18 +247,12 @@ async def health(request: Request):
     import torch
     from pathlib import Path
     
-    demo_scenario = get_demo_scenario()
-    is_demo = demo_scenario is not None
-    
     health_data = {
         "status": "healthy",
-        "demo_mode": is_demo,
-        "session_active": (session_manager.current_session is not None) if not is_demo else (mock_detector.is_running if mock_detector else False)
+        "session_active": session_manager.current_session is not None,
+        "model_exists": Path(config.model_checkpoint).exists(),
+        "device": "mps" if torch.backends.mps.is_available() else "cpu"
     }
-    
-    if not is_demo:
-        health_data["model_exists"] = Path(config.model_checkpoint).exists()
-        health_data["device"] = "mps" if torch.backends.mps.is_available() else "cpu"
     
     return JSONResponse(health_data)
 
@@ -279,22 +261,13 @@ async def health(request: Request):
 @asynccontextmanager
 async def lifespan(app):
     """Initialize on startup, cleanup on shutdown."""
-    global session_manager, config, demo_mode, mock_detector
+    global session_manager, config
     
-    # Startup - check for demo mode
-    demo_scenario = get_demo_scenario()
-    demo_mode = demo_scenario is not None
-    
-    if demo_mode:
-        logger.info(f"Starting in DEMO MODE with scenario: {os.getenv('DEMO_SCENARIO', 'quick_roast')}")
-        logger.info(f"FC will auto-trigger at {demo_scenario.fc_trigger_time}s")
-        mock_detector = MockFirstCrackDetector(fc_trigger_time=demo_scenario.fc_trigger_time)
-        config = type('Config', (), {'model_checkpoint': 'demo_mode'})()
-    else:
-        config = load_config()
-        setup_logging(config)
-        session_manager = DetectionSessionManager(config)
-        logger.info(f"Model: {config.model_checkpoint}")
+    # Startup - load real model and config
+    config = load_config()
+    setup_logging(config)
+    session_manager = DetectionSessionManager(config)
+    logger.info(f"Model: {config.model_checkpoint}")
     
     setup_mcp_server()
     logger.info("First Crack Detection MCP Server (HTTP+SSE) initialized")
