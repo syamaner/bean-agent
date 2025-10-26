@@ -166,7 +166,7 @@ Intelligent roasting agent orchestration in progress.
 - `READY_TO_TEST.md` - Main testing guide
 - `QUICK_TEST.md` - Quick reference
 - `docs/MANUAL_TESTING.md` - Detailed scenarios
-- `test_roaster_server.sh` - Start script
+- `scripts/testing/test_roaster_server.sh` - Start script
 
 ### Servers
 - `src/mcp_servers/roaster_control/sse_server.py` - Port 5002
@@ -221,7 +221,7 @@ cd /Users/sertanyamaner/git/coffee-roasting
 source venv/bin/activate
 
 # Start roaster server
-./test_roaster_server.sh
+./scripts/testing/test_roaster_server.sh
 
 # (In new terminal) Start detection server
 export $(cat .env.first_crack_detection | xargs)
