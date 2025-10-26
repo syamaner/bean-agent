@@ -269,15 +269,31 @@ async def lifespan(app):
             logger.warning(f"Shutdown error: {e}")
 
 
-# Create Starlette app
-sse_transport = SseServerTransport("/messages")
+# Create SSE transport
+from mcp.server.transport_security import TransportSecuritySettings
+security_settings = TransportSecuritySettings(
+    enable_dns_rebinding_protection=False  # Disable for local development
+)
+sse_transport = SseServerTransport("/messages", security_settings)
+
+# SSE endpoint handler (as per MCP documentation)  
+async def handle_sse(request: Request):
+    """Handle SSE connection and run MCP server."""
+    async with sse_transport.connect_sse(request.scope, request.receive, request._send) as streams:
+        await mcp_server.run(
+            streams[0],  # read stream  
+            streams[1],  # write stream
+            mcp_server.create_initialization_options()
+        )
+    # Return empty response to avoid NoneType error
+    return Response()
 
 app = Starlette(
     debug=False,
     routes=[
         Route("/", root),
         Route("/health", health),
-        Mount("/sse", app=sse_transport.connect_sse),
+        Route("/sse", handle_sse, methods=["GET"]),
         Mount("/messages", app=sse_transport.handle_post_message),
     ],
     middleware=[
