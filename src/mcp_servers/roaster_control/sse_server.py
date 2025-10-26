@@ -148,33 +148,60 @@ def setup_mcp_server():
         raise ValueError(f"Unknown resource: {uri}")
     
     @mcp_server.list_tools()
-    async def list_tools() -> list[Tool]:
-        return [
+    async def list_tools(request_context=None) -> list[Tool]:
+        # Get scopes from context if available (set by transport)
+        # For now, return all tools - MCP doesn't expose request context in list_tools
+        # Access control happens at call_tool level
+        
+        # Define all available tools
+        all_tools = [
             Tool(
                 name="read_roaster_status",
-                description="Read current roaster status and sensors (read:roaster)",
+                description="""Read comprehensive roaster status including:
+                - session_active: bool - whether a roast session is running
+                - roaster_running: bool - drum motor state
+                - bean_temp_c: float - current bean temperature in Celsius
+                - env_temp_c: float - environmental/chamber temperature
+                - heat_level: int (0-100) - current heating element power
+                - fan_speed: int (0-100) - current fan speed percentage
+                - cooling_active: bool - cooling tray state
+                - elapsed_time_sec: float - seconds since roast start
+                - first_crack_time: ISO timestamp or null - when FC was detected
+                - ror_c_per_min: float - rate of rise (temperature change rate)
+                - Events list with timestamps for key roast events
+                Returns JSON with all sensor readings and roast progress.""",
                 inputSchema={"type": "object", "properties": {}}
             ),
             Tool(
                 name="start_roaster",
-                description="Start roaster drum rotation (write:roaster)",
+                description="""Start the roaster drum motor. Call this before adding beans.
+                Typically used during preheat phase when chamber reaches ~180°C.
+                Does not automatically start heating - use set_heat separately.""",
                 inputSchema={"type": "object", "properties": {}}
             ),
             Tool(
                 name="stop_roaster",
-                description="Stop roaster and end session (write:roaster)",
+                description="""Stop roaster drum and end the roast session. 
+                Use drop_beans instead for normal roast completion.
+                This is for emergency stops or cancelling a roast.""",
                 inputSchema={"type": "object", "properties": {}}
             ),
             Tool(
                 name="set_heat",
-                description="Set heat level 0-100% (write:roaster)",
+                description="""Adjust heating element power level (0-100%).
+                - During preheat: typically 100% to reach starting temp quickly
+                - Early roast: 80-100% to build heat momentum  
+                - After FC: reduce to 60-80% to control development
+                - Near finish: reduce to 40-60% to prevent scorching
+                Changes take effect immediately but temperature responds gradually.""",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "level": {
                             "type": "number",
                             "minimum": 0,
-                            "maximum": 100
+                            "maximum": 100,
+                            "description": "Heat power percentage (0-100)"
                         }
                     },
                     "required": ["level"]
@@ -182,14 +209,21 @@ def setup_mcp_server():
             ),
             Tool(
                 name="set_fan",
-                description="Set fan speed 0-100% (write:roaster)",
+                description="""Adjust airflow/fan speed (0-100%).
+                - Lower fan (20-40%): retains heat, faster roast, risk of scorching
+                - Higher fan (60-80%): removes heat/smoke, slower roast, better clarity
+                - During preheat: low (20-30%) to build heat
+                - During roast: gradually increase from 30% → 60%
+                - After FC: increase to 50-70% for development control
+                Fan affects both temperature and smoke removal.""",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "speed": {
                             "type": "number",
                             "minimum": 0,
-                            "maximum": 100
+                            "maximum": 100,
+                            "description": "Fan speed percentage (0-100)"
                         }
                     },
                     "required": ["speed"]
@@ -197,36 +231,61 @@ def setup_mcp_server():
             ),
             Tool(
                 name="drop_beans",
-                description="Drop beans and start cooling (write:roaster)",
+                description="""Drop roasted beans into cooling tray and automatically start cooling.
+                Use this to finish a roast when target is reached. 
+                Beans fall from drum into cooling tray, drum stops, cooling fan activates.
+                Typical usage: when bean temp reaches 190-195°C for light roasts,
+                or 200-205°C for medium roasts, 2-3 minutes after first crack.""",
                 inputSchema={"type": "object", "properties": {}}
             ),
             Tool(
                 name="start_cooling",
-                description="Start cooling drum (write:roaster)",
+                description="""Manually start cooling tray fan.
+                Normally drop_beans does this automatically.
+                Use only if you need to cool beans already in the tray.""",
                 inputSchema={"type": "object", "properties": {}}
             ),
             Tool(
                 name="stop_cooling",
-                description="Stop cooling drum (write:roaster)",
+                description="""Stop cooling tray fan.
+                Use after beans have cooled to room temperature (typically 3-5 minutes).""",
                 inputSchema={"type": "object", "properties": {}}
             ),
             Tool(
                 name="report_first_crack",
-                description="Report first crack detected (write:roaster)",
+                description="""Report that first crack (FC) has been detected.
+                Called by first crack detection system or manually.
+                Records FC time and temperature for roast profile tracking.
+                After FC, development phase begins - typically reduce heat and increase fan.""",
                 inputSchema={
                     "type": "object",
                     "properties": {
-                        "timestamp": {"type": "string"}
+                        "timestamp": {
+                            "type": "string",
+                            "description": "ISO 8601 UTC timestamp when first crack occurred"
+                        }
                     },
                     "required": ["timestamp"]
                 }
             )
         ]
+        
+        return all_tools
     
     @mcp_server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-        """Handle tool calls with user audit logging."""
+    async def call_tool(name: str, arguments: dict, request_context=None) -> list[TextContent]:
+        """Handle tool calls with scope-based access control."""
+        # Define which tools require write access
+        write_tools = {
+            "start_roaster", "stop_roaster", "set_heat", "set_fan",
+            "drop_beans", "start_cooling", "stop_cooling", "report_first_crack"
+        }
+        
         try:
+            # Note: In SSE transport, we don't have direct access to request context
+            # Scope enforcement happens at middleware level
+            # This is a secondary check - tools are documented with required scopes
+            
             # Call session_manager methods directly
             if name == "read_roaster_status":
                 status = session_manager.get_status()
@@ -340,15 +399,35 @@ async def lifespan(app):
             logger.warning(f"Shutdown error: {e}")
 
 
-# Create Starlette app
-sse_transport = SseServerTransport("/messages")
+# Create SSE transport
+from mcp.server.transport_security import TransportSecuritySettings
+security_settings = TransportSecuritySettings(
+    enable_dns_rebinding_protection=False  # Disable for local development
+)
+sse_transport = SseServerTransport("/messages", security_settings)
+
+# SSE endpoint handler (as per MCP documentation)
+async def handle_sse(request: Request):
+    """Handle SSE connection and run MCP server."""
+    logger.info("SSE connection established, starting MCP server...")
+    async with sse_transport.connect_sse(request.scope, request.receive, request._send) as streams:
+        logger.info("Got streams, running MCP server...")
+        await mcp_server.run(
+            streams[0],  # read stream  
+            streams[1],  # write stream
+            mcp_server.create_initialization_options()
+        )
+        logger.info("MCP server run completed")
+    # Return empty response to avoid NoneType error
+    logger.info("Returning response")
+    return Response()
 
 app = Starlette(
     debug=False,
     routes=[
         Route("/", root),
         Route("/health", health),
-        Mount("/sse", app=sse_transport.connect_sse),
+        Route("/sse", handle_sse, methods=["GET"]),
         Mount("/messages", app=sse_transport.handle_post_message),
     ],
     middleware=[

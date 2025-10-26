@@ -1,7 +1,7 @@
 # Progress Tracker
 
 **Started**: 2025-10-25  
-**Last Updated**: 2025-10-25 23:29 UTC
+**Last Updated**: 2025-10-26 10:24 UTC
 
 ---
 
@@ -54,36 +54,52 @@
 
 **Goal**: Orchestrate roasting using MCP servers with LLM decision-making
 
-#### Completed
+**Architecture Decision**: Skip .NET Aspire for now, use direct Python processes + n8n
+- Simpler development path
+- Faster iteration for workflow design
+- Aspire can be added later for production deployment
+
+#### Completed (2025-10-26)
 1. ✅ Both MCP servers deployed and tested
-2. ✅ Auth0 authentication configured
+2. ✅ Auth0 M2M authentication (client_credentials)
 3. ✅ Health endpoints working
+4. ✅ Repository housekeeping (organized scripts/docs)
+5. ✅ M2M auth refactor (23/23 tests passing)
 
-#### In Progress
-- 🟡 Manual testing with Auth0 tokens
-- 🟡 RBAC validation (different scope tokens)
-
-#### Next Steps
-1. ⚪ Test MCP tools with Warp client
-2. ⚪ Set up .NET Aspire orchestration
-   - Add Python projects to AppHost
-   - Configure n8n container
-   - Service discovery and health checks
-3. ⚪ Create n8n workflow
+#### Current Sprint: Aspire + n8n Setup
+1. ✅ Created .NET Aspire AppHost project
+2. ✅ Added Python hosting integration
+3. ✅ Configured Python MCP servers as resources
+4. ✅ Added n8n container with persistent storage
+5. ✅ Documented architecture and setup
+6. 🟡 Test Aspire orchestration
+7. 🟡 Create n8n workflow
    - Poll roaster status (1s intervals)
    - Poll first crack detection
-   - LLM decision nodes (OpenAI/Anthropic)
-   - Control adjustments based on metrics
-4. ⚪ Implement roast profiles
-   - JSON configuration for different beans
-   - Target temps, RoR, development time %
-5. ⚪ Safety interlocks
-   - Max temp limits
+   - Calculate metrics (RoR, development time)
+   - LLM decision node (OpenAI GPT-4)
+   - Execute control actions (heat/fan adjustments)
+8. 🟡 Create OpenAI prompt template
+   - Roasting knowledge and decision logic
+   - Safety boundaries
+   - Target profiles
+
+#### Next Steps
+1. ⚪ Test end-to-end with mock hardware
+2. ⚪ Implement safety interlocks in workflow
+   - Max temp limits (205°C hard stop)
    - RoR boundaries
    - Watchdog timeouts
-6. ⚪ Hardware-in-the-loop testing
+3. ⚪ Create roast profile library
+   - JSON configs for different beans
+   - Light/medium/dark profiles
+4. ⚪ Hardware-in-the-loop testing
    - Real Hottop roaster
-   - Live microphone
-   - End-to-end validation
+   - Live USB microphone
+   - Actual roast validation
+5. ⚪ Production deployment (later)
+   - .NET Aspire orchestration
+   - Docker containers
+   - Cloudflare Tunnels
 
-**Estimated Time**: 2-3 weeks
+**Estimated Time**: 1-2 weeks

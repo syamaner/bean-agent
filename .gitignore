@@ -78,3 +78,5 @@ data/backups/**/*.wav
 
 # Auth0 credentials - contains secrets
 docs/03-phase-3/AUTH0_SETUP.md
+Phase3/CoffeeRoasting.AppHost/bin/**/*
+Phase3/CoffeeRoasting.AppHost/obj/**/*
