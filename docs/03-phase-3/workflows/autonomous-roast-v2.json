@@ -22,7 +22,7 @@
             },
             {
               "name": "client_secret",
-              "value": "***REDACTED***"
+              "value": "YOUR_AUTH0_CLIENT_SECRET"
             },
             {
               "name": "audience",

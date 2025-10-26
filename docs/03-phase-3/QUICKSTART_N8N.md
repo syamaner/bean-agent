@@ -65,7 +65,7 @@ Open browser to: **http://localhost:5678**
   ```json
   {
     "client_id": "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7",
-    "client_secret": "***REDACTED***",
+    "client_secret": "YOUR_AUTH0_CLIENT_SECRET",
     "audience": "https://coffee-roasting-api",
     "grant_type": "client_credentials"
   }
