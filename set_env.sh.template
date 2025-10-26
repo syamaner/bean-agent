@@ -1,0 +1,32 @@
+#!/bin/bash
+# Environment Variables for Coffee Roasting Agent
+# TEMPLATE FILE - Copy to set_env.sh and add your actual credentials
+# 
+# Setup:
+# 1. Copy this file: cp set_env.sh.template set_env.sh
+# 2. Edit set_env.sh and replace placeholder values with real credentials
+# 3. Source before running: source ./set_env.sh
+#
+# IMPORTANT: set_env.sh is in .gitignore and should NEVER be committed
+
+# Auth0 Configuration
+# Get these from your Auth0 dashboard:
+# https://manage.auth0.com/dashboard/
+export AUTH0_DOMAIN="your-auth0-domain.auth0.com"
+export AUTH0_CLIENT_ID="your-client-id-here"
+export AUTH0_CLIENT_SECRET="your-client-secret-here"
+export AUTH0_AUDIENCE="https://coffee-roasting-api"
+
+# OpenAI API Key
+# Get from: https://platform.openai.com/api-keys
+export OPENAI_API_KEY="sk-your-openai-api-key-here"
+
+echo "✅ Environment variables set:"
+echo "   AUTH0_DOMAIN: $AUTH0_DOMAIN"
+echo "   AUTH0_CLIENT_ID: $AUTH0_CLIENT_ID"
+echo "   AUTH0_CLIENT_SECRET: [HIDDEN]"
+echo "   AUTH0_AUDIENCE: $AUTH0_AUDIENCE"
+echo "   OPENAI_API_KEY: [HIDDEN]"
+echo ""
+echo "⚠️  Remember: source this file before running the agent:"
+echo "   source ./set_env.sh"
