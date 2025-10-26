@@ -360,6 +360,7 @@ class HottopRoaster(HardwareInterface):
         self._serial: Optional[serial.Serial] = None
         
         # Control state (continuously sent to roaster)
+        # Initialize with SAFE defaults - everything OFF
         self._state = {
             'heater': 0,       # 0-100%
             'fan': 0,          # 0-100%
@@ -369,7 +370,7 @@ class HottopRoaster(HardwareInterface):
             'cooling_motor': 0 # 0=off, 1=on
         }
         
-        # Latest sensor readings
+        # Latest sensor readings from roaster
         self._latest_bean_temp = 0.0
         self._latest_chamber_temp = 0.0
         
@@ -404,6 +405,7 @@ class HottopRoaster(HardwareInterface):
             self._connected = True
             
             # Start continuous command loop (required by Hottop protocol)
+            # Commands are sent every 0.3s with current state
             self._running = True
             self._command_thread = threading.Thread(
                 target=self._command_loop,
@@ -653,7 +655,10 @@ class HottopRoaster(HardwareInterface):
                 time.sleep(0.3)
     
     def _send_command(self):
-        """Send control command to roaster using Artisan protocol."""
+        """Send control command to roaster using Artisan protocol.
+        
+        Sends current state every 0.3s. State only changes when explicitly set.
+        """
         if not self._serial or not self._serial.is_open:
             return
         
@@ -672,11 +677,6 @@ class HottopRoaster(HardwareInterface):
             cmd[12] = int(round(self._state['main_fan'] / 10.0))  # 0-10 scale
             cmd[16] = self._state['solenoid']
             cmd[17] = self._state['drum_motor']
-            
-            # Safety: drum must be on when heating
-            if self._state['heater'] > 0:
-                cmd[17] = 1
-            
             cmd[18] = self._state['cooling_motor']
             cmd[35] = sum(cmd[:35]) & 0xFF  # Checksum
         

@@ -31,7 +31,7 @@ ROASTER_SSE_URL = os.getenv("services__roaster-control__http__0", "http://localh
 DETECTION_SSE_URL = os.getenv("services__first-crack-detection__http__0", "http://localhost:5001") + "/sse"
 
 # Agent configuration
-MONITOR_INTERVAL = 5  # seconds between status checks
+MONITOR_INTERVAL = 10  # seconds between status checks (increased to reduce command spam)
 FC_CHECK_INTERVAL = 2  # seconds between FC status checks
 
 
@@ -62,23 +62,37 @@ class RoastingAgent:
         self.first_crack_detected = False
         self.roast_log = []
         
+        # Rate limiting to prevent command spam
+        self.last_adjustment_time = None
+        self.adjustment_cooldown = 30  # seconds between AI adjustments
+        
     async def create_roast_plan(self, prompt: str) -> Dict[str, Any]:
         """Ask GPT-4 to create a detailed roast plan."""
         print("\n🤔 Creating roast plan with AI...", flush=True)
         
-        system_prompt = """You are an expert coffee roasting assistant. 
+        system_prompt = """You are an expert coffee roasting assistant for a Hottop KN-8828B-2K+ drum roaster.
+
+        - Preheat: 3-5 minutes to reach ~180-200°C
+        - User will manually charge beans when chamber is ready at ~180 degrees
+        - There will be a rapid temperature drop on charge (~180°C -> ~80°C)
+          - This is tracked by the roaster mcp server
+        - Total roast time: 10-15 minutes from the moment beans are charged
+        - First crack: Typically 6-8 minutes, at 160-175°C
+        - Development (post-FC): 15-20% of total roast time
+        - Drop: 192-205°C depending on roast level
+        
         Create a detailed roasting plan based on the user's requirements.
         
         Return a JSON object with:
         {
           "bean_type": "string",
           "target_roast": "string (light/medium/dark)",
-          "initial_heat": number (0-100),
-          "initial_fan": number (0-100),
-          "target_fc_temp": number (celsius),
-          "target_fc_time": number (minutes),
+          "initial_heat": 100 (always start at 100% for preheat),
+          "initial_fan": 0 (always start at 0%),
+          "target_fc_temp": number (160-180°C),
+          "target_fc_time": number (7-12 minutes),
           "post_fc_adjustments": "string with instructions",
-          "target_total_time": number (minutes),
+          "target_total_time": number (10-15 minutes),
           "drop_criteria": "string describing when to drop"
         }"""
         
@@ -110,9 +124,9 @@ class RoastingAgent:
         await self.roaster.call_tool("start_roaster", {})
         print("   ✓ Roaster drum started", flush=True)
         
-        # Set initial parameters (override plan to ensure correct demo settings)
-        initial_heat = 100  # Always 100% for fast demo roast
-        initial_fan = 0     # Always 0% at start per demo requirements
+        # Set initial parameters for real roasting
+        initial_heat = plan.get('initial_heat', 100)  # Use plan or default to 100%
+        initial_fan = plan.get('initial_fan', 0)      # Use plan or default to 0%
         
         heat_result = await self.roaster.call_tool("set_heat", {"level": initial_heat})
         print(f"   🔍 Heat tool response: {heat_result.content[0].text}", flush=True)
@@ -182,9 +196,22 @@ class RoastingAgent:
                 await asyncio.sleep(MONITOR_INTERVAL)
                 continue
             
-            # Check for first crack
-            if not self.first_crack_detected and fc_status.get("first_crack_detected"):
-                await self.handle_first_crack(status, plan)
+            # Check for first crack (with safety guards for false positives)
+            fc_detected = fc_status.get("first_crack_detected")
+            
+            # Safety checks to prevent false positives:
+            # 1. Temperature must be in realistic FC range (160-200°C)
+            # 2. At least 5 minutes must have elapsed
+            fc_temp_valid = 160 <= temp <= 200
+            fc_time_valid = elapsed_min >= 5.0
+            
+            if not self.first_crack_detected and fc_detected:
+                if fc_temp_valid and fc_time_valid:
+                    await self.handle_first_crack(status, plan)
+                else:
+                    # False positive - log and ignore
+                    print(f"   ⚠️  FC detected but IGNORED - False positive (temp={temp:.1f}°C, time={elapsed_min:.1f}min)", flush=True)
+                    print(f"       (Need: temp 160-200°C and time >= 5 min)", flush=True)
             
             # After FC, make AI decisions
             if self.first_crack_detected:
@@ -220,6 +247,15 @@ class RoastingAgent:
     
     async def make_decision(self, status: Dict, plan: Dict, elapsed_min: float) -> bool:
         """Use AI to decide on parameter adjustments."""
+        # Rate limiting: Don't adjust too frequently
+        # Electric heating takes 30-60 seconds to show effect
+        if self.last_adjustment_time:
+            time_since_last = (datetime.now(UTC) - self.last_adjustment_time).total_seconds()
+            if time_since_last < self.adjustment_cooldown:
+                cooldown_remaining = self.adjustment_cooldown - time_since_last
+                print(f"   ⏸️  Cooldown active ({cooldown_remaining:.0f}s remaining - waiting for changes to take effect)", flush=True)
+                return True  # Continue monitoring without adjusting
+        
         fc_elapsed = (datetime.now(UTC) - self.first_crack_time).total_seconds() / 60
         
         # Extract sensor data
@@ -323,6 +359,9 @@ Respond with JSON:
                     print(f"   ⚠️  Fan clamped from {decision['fan_adjustment']}% to {fan_val}%", flush=True)
                 await self.roaster.call_tool("set_fan", {"speed": fan_val})
                 print(f"   ✓ Fan adjusted to {fan_val}%", flush=True)
+            
+            # Record adjustment time for rate limiting
+            self.last_adjustment_time = datetime.now(UTC)
             
             self.log_event("AI adjustment", decision)
             return True
@@ -437,37 +476,32 @@ async def run_autonomous_roast(roast_prompt: str):
 if __name__ == "__main__":
     # Default roast prompt - adjust as needed
     prompt = """
-    Demo roast with fast timeline (45s to first crack, 52s total).
-    
     START SETTINGS (FIXED - no AI control):
     - Heat: 100% (full power to reach FC quickly)
     - Fan: 0% (no cooling at start)
     
-    PRE-FC PHASE (0-45s) - NO AI ADJUSTMENTS:
-    - 0-15s: Preheat phase (20°C -> ~180°C)
-    - 15s: Beans charged (temp drops to 80°C)
-    - 15-45s: Fast rise to first crack (~170°C)
-    - Goal: MAXIMUM rate of rise to reach FC quickly
-    - AI does NOT make adjustments - just monitors
+    PRE-FC PHASE - NO AI ADJUSTMENTS:
+    - Preheat roaster to ~180-200°C
+    - User manually charges beans at ~180°C
+    - Expect rapid temp drop to ~80°C on charge
+    - Then the temp will start rising again towards FC
     
-    POST-FC PHASE (45-52s) - AI TAKES CONTROL:
+    POST-FC PHASE (confirmed by FC MCP server) - AI TAKES CONTROL:
     When first crack is detected, AI must:
-    1. IMMEDIATELY reduce heat to 60-70%
+    1. Keep reducing the heat but not below 50% to reduce the rate of rise.
     2. Gradually increase fan to 50-60%
     3. Monitor development_time_percent (time since FC / total roast time)
     4. Stretch development to 15-20% while approaching 192-195°C
     
     DROP CRITERIA (both required):
-    - Development time: 15-20% of total roast
-    - Bean temperature: 192-195°C
-    - Do NOT drop until BOTH are met
+    - Development time: 10-20% of total roast
+    - Bean temperature: 191-196°C
     - Emergency drop if temp > 200°C (burnt!)
     
     CRITICAL UNDERSTANDING:
     - Development time = (time since FC) / (total roast time) * 100%
     - Before FC: development time is 0% (not relevant yet)
     - After FC: AI adjusts heat/fan to slow temp rise and stretch development
-    - This is a FAST demo - only ~7 seconds for development phase
     """
     
     if len(sys.argv) > 1:

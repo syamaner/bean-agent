@@ -9,19 +9,12 @@ from mcp.types import Tool, TextContent, Resource
 
 from .session_manager import RoastSessionManager
 from .hardware import MockRoaster
-from .demo_roaster import DemoRoaster
 from .models import ServerConfig
 from .exceptions import RoasterError
-
-# Import demo scenario from shared location
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from demo_scenario import get_demo_scenario
 
 # Global state
 _session_manager: Optional[RoastSessionManager] = None
 _config: Optional[ServerConfig] = None
-_demo_mode: bool = False
-_demo_scenario = None
 
 # Create MCP server
 server = Server("roaster-control")
@@ -36,30 +29,22 @@ def init_server(config: Optional[ServerConfig] = None) -> None:
     Raises:
         ValueError: If configuration is invalid
     """
-    global _session_manager, _config, _demo_mode, _demo_scenario
-    
-    # Check for demo mode from shared scenario
-    _demo_scenario = get_demo_scenario()
-    _demo_mode = _demo_scenario is not None
+    global _session_manager, _config
     
     if config is None:
         config = ServerConfig()
     
-    # Validate configuration (skip some checks in demo mode)
-    if not _demo_mode:
-        config.validate()
+    # Simple mock flag for testing
+    use_mock = os.getenv("USE_MOCK_HARDWARE", "false").lower() == "true"
     
-    _config = config
-    
-    # Create hardware (demo/mock/real based on config and scenario)
-    if _demo_mode:
-        hardware = DemoRoaster(scenario=_demo_scenario)
-    elif _config.hardware.mock_mode:
+    if use_mock:
         hardware = MockRoaster()
     else:
+        config.validate()
         from .hardware import HottopRoaster
-        hardware = HottopRoaster(port=_config.hardware.port)
+        hardware = HottopRoaster(port=config.hardware.port)
     
+    _config = config
     _session_manager = RoastSessionManager(hardware, _config)
 
 
@@ -314,14 +299,15 @@ async def read_resource(uri: str) -> str:
     """Read resource content."""
     if uri == "health://status":
         import json
+        import os
         
-        hardware_mode = "demo" if _demo_mode else ("mock" if _config.hardware.mock_mode else "real")
+        use_mock = os.getenv("USE_MOCK_HARDWARE", "false").lower() == "true"
+        hardware_mode = "mock" if use_mock else "real"
         
         health_data = {
             "status": "healthy",
             "version": "1.0.0",
             "hardware_mode": hardware_mode,
-            "demo_mode": _demo_mode,
             "session_active": _session_manager.is_active() if _session_manager else False,
             "roaster_info": _session_manager.get_hardware_info() if _session_manager else None
         }
