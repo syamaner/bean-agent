@@ -1,0 +1,288 @@
+{
+  "name": "Autonomous Roast Loop",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Start Roast",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 400]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://genai-7175210165555426.uk.auth0.com/oauth/token",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7"
+            },
+            {
+              "name": "client_secret",
+              "value": "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k"
+            },
+            {
+              "name": "audience",
+              "value": "https://coffee-roasting-api"
+            },
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            }
+          ]
+        }
+      },
+      "id": "get-token",
+      "name": "Get Auth0 Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "token",
+              "name": "auth_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "loop-count",
+              "name": "loop_count",
+              "value": "0",
+              "type": "number"
+            },
+            {
+              "id": "roast-start",
+              "name": "roast_start_time",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "init-vars",
+      "name": "Initialize Variables",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "output": "={{ $json.loop_count < 180 ? 'continue' : 'stop' }}"
+      },
+      "id": "check-continue",
+      "name": "Check Continue",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [900, 400],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "amount": 10,
+        "unit": "seconds"
+      },
+      "id": "wait-10s",
+      "name": "Wait 10 Seconds",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1120, 300],
+      "webhookId": "roast-wait"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "increment",
+              "name": "loop_count",
+              "value": "={{ $json.loop_count + 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "elapsed",
+              "name": "elapsed_minutes",
+              "value": "={{ ($json.loop_count * 10) / 60 }}",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "id": "increment-loop",
+      "name": "Increment Loop Counter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are monitoring an active coffee roast. Elapsed time: {{ $json.elapsed_minutes }} minutes.\n\nYour task:\n1. Get the current roaster status\n2. Check first crack detection status\n3. Analyze the data (temperature, rate of rise, first crack timing)\n4. Decide on adjustments (heat, fan) or if roast is complete\n5. Execute the necessary actions\n\nImportant context:\n- Target roast time: 10-12 minutes total\n- First crack typically at 7-9 minutes\n- Development (post-FC) should be 15-20% of total time\n- Drop beans when appropriate (light roast: 195-200°C)\n\nProvide a brief status update with your actions.",
+        "options": {
+          "systemMessage": "You are an expert coffee roasting assistant.\n\nYou have access to MCP tools for:\n- Roaster Control (get status, set heat/fan, drop beans, cooling)\n- First Crack Detection (check status)\n\nRoasting phases:\n1. Preheat (before beans): 100% heat, 0% fan\n2. Charge (beans added): Temperature drops\n3. Drying (0-5 min): High heat, low fan, build momentum\n4. Maillard (5-8 min): Moderate heat, monitor RoR\n5. First Crack (7-10 min): Reduce heat when detected\n6. Development (post-FC): 15-20% of total, lower heat, higher fan\n7. Drop: Open door, start cooling\n\nKey metrics:\n- Rate of Rise (RoR): Target 5-8°C/min, avoid >10 or <3\n- Development time: Should be 15-20% of total roast\n- Safety: Never exceed 205°C bean temp\n\nAlways check status before adjusting. Make gradual changes (10-20% at a time)."
+        }
+      },
+      "id": "ai-agent",
+      "name": "AI Roast Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 1500
+        }
+      },
+      "id": "openai-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [1560, 120],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai-cred",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "http://host.docker.internal:5002",
+        "authentication": "bearer",
+        "bearerToken": "={{ $('Initialize Variables').item.json.auth_token }}",
+        "toolsToInclude": "all"
+      },
+      "id": "mcp-roaster",
+      "name": "Roaster Control MCP",
+      "type": "@n8n/n8n-nodes-langchain.toolMcp",
+      "typeVersion": 1,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "sseEndpoint": "http://host.docker.internal:5001",
+        "authentication": "bearer",
+        "bearerToken": "={{ $('Initialize Variables').item.json.auth_token }}",
+        "toolsToInclude": "all"
+      },
+      "id": "mcp-detection",
+      "name": "First Crack Detection MCP",
+      "type": "@n8n/n8n-nodes-langchain.toolMcp",
+      "typeVersion": 1,
+      "position": [1780, 400]
+    },
+    {
+      "parameters": {
+        "keepOnlySet": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "preserve-token",
+              "name": "auth_token",
+              "value": "={{ $('Initialize Variables').item.json.auth_token }}",
+              "type": "string"
+            },
+            {
+              "id": "preserve-count",
+              "name": "loop_count",
+              "value": "={{ $json.loop_count }}",
+              "type": "number"
+            },
+            {
+              "id": "agent-output",
+              "name": "agent_response",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "preserve-state",
+      "name": "Preserve State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "content": "=## Roast Update ({{ $json.loop_count * 10 }}s / {{ Math.floor($json.loop_count * 10 / 60) }}:{{ String(($json.loop_count * 10) % 60).padStart(2, '0') }})\n\n{{ $json.agent_response }}\n\n---",
+        "height": 200,
+        "width": 400
+      },
+      "id": "log-output",
+      "name": "Log Progress",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "content": "=## 🎉 Roast Complete!\n\nTotal time: {{ Math.floor($json.loop_count * 10 / 60) }} minutes\n\nFinal update:\n{{ $json.agent_response }}",
+        "height": 300,
+        "width": 400
+      },
+      "id": "complete-note",
+      "name": "Roast Complete",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1120, 500]
+    }
+  ],
+  "connections": {
+    "Start Roast": {
+      "main": [[{"node": "Get Auth0 Token", "type": "main", "index": 0}]]
+    },
+    "Get Auth0 Token": {
+      "main": [[{"node": "Initialize Variables", "type": "main", "index": 0}]]
+    },
+    "Initialize Variables": {
+      "main": [[{"node": "Check Continue", "type": "main", "index": 0}]]
+    },
+    "Check Continue": {
+      "main": [
+        [{"node": "Wait 10 Seconds", "type": "main", "index": 0}],
+        [{"node": "Roast Complete", "type": "main", "index": 0}]
+      ]
+    },
+    "Wait 10 Seconds": {
+      "main": [[{"node": "Increment Loop Counter", "type": "main", "index": 0}]]
+    },
+    "Increment Loop Counter": {
+      "main": [[{"node": "AI Roast Agent", "type": "main", "index": 0}]]
+    },
+    "AI Roast Agent": {
+      "ai_languageModel": [[{"node": "OpenAI Chat Model", "type": "ai_languageModel", "index": 0}]],
+      "ai_tool": [
+        [
+          {"node": "Roaster Control MCP", "type": "ai_tool", "index": 0},
+          {"node": "First Crack Detection MCP", "type": "ai_tool", "index": 0}
+        ]
+      ],
+      "main": [[{"node": "Preserve State", "type": "main", "index": 0}]]
+    },
+    "Preserve State": {
+      "main": [[
+        {"node": "Log Progress", "type": "main", "index": 0},
+        {"node": "Check Continue", "type": "main", "index": 0}
+      ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {},
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-26T20:19:00.000Z"
+}

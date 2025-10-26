@@ -15,10 +15,11 @@ import os
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 
-from src.mcp_servers.shared.auth0_middleware import requires_scope, validate_auth0_token
+from src.mcp_servers.auth0_middleware import requires_scope
+from src.mcp_servers.shared.auth0_middleware import validate_auth0_token
 from .config import load_config
 from .session_manager import DetectionSessionManager
 from .models import (
@@ -140,9 +141,78 @@ async def health():
     return health_data
 
 
-@app.get("/", response_model=APIInfoResponse, tags=["public"])
-async def root():
-    """API information - no authentication required."""
+@app.api_route("/", methods=["GET", "POST"], tags=["public"])
+async def root(request: Request):
+    """API information (GET) and MCP tool definitions (POST) - no authentication required.
+    
+    This endpoint is used by n8n MCP Client to discover available tools.
+    """
+    if request.method == "POST":
+        return {
+        "tools": [
+            {
+                "name": "start_first_crack_detection",
+                "description": "Start first crack detection monitoring with audio file, USB microphone, or built-in microphone",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "audio_source_type": {
+                            "type": "string",
+                            "enum": ["audio_file", "usb_microphone", "builtin_microphone"],
+                            "description": "Type of audio source to use"
+                        },
+                        "audio_file_path": {
+                            "type": "string",
+                            "description": "Path to audio file (required if audio_source_type is 'audio_file')"
+                        },
+                        "detection_config": {
+                            "type": "object",
+                            "description": "Optional detection parameters",
+                            "properties": {
+                                "threshold": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                    "maximum": 1,
+                                    "description": "Detection threshold (default: 0.5)"
+                                },
+                                "min_pops": {
+                                    "type": "integer",
+                                    "minimum": 1,
+                                    "description": "Minimum pops to confirm (default: 3)"
+                                },
+                                "confirmation_window": {
+                                    "type": "number",
+                                    "minimum": 1,
+                                    "description": "Confirmation window in seconds (default: 30.0)"
+                                }
+                            }
+                        }
+                    },
+                    "required": ["audio_source_type"]
+                }
+            },
+            {
+                "name": "get_first_crack_status",
+                "description": "Get current first crack detection status",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "stop_first_crack_detection",
+                "description": "Stop first crack detection and get session summary",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        ]
+    }
+    
+    # GET request - return API info
     return {
         "name": "First Crack Detection MCP Server",
         "version": "1.0.0",
@@ -151,7 +221,7 @@ async def root():
         "endpoints": {
             "public": {
                 "/health": "Health check and status",
-                "/": "API information"
+                "/": "API information (GET) or MCP tools (POST)"
             },
             "protected": {
                 "/api/detection/status": "Get current detection status (scope: read:detection)",

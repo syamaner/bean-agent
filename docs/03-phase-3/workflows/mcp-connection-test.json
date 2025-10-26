@@ -1,0 +1,190 @@
+{
+  "name": "MCP Connection Test",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "9a3e3f1e-8c7b-4d9e-9f3a-1e8c7b4d9e9f",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://genai-7175210165555426.uk.auth0.com/oauth/token",
+        "authentication": "none",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": "Jk3aF2NfkiiOIXY0eHJQxfA6jkP0Pjf7"
+            },
+            {
+              "name": "client_secret",
+              "value": "05agLnSUZceYK2Yl9bYGGnV_zuy7EAJ9ZWnMuOpCHEIOx2v8xZ7XNAmsQW020m2k"
+            },
+            {
+              "name": "audience",
+              "value": "https://coffee-roasting-api"
+            },
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "1b4e4f2e-9c8b-5d0e-0g4b-2f9c8b5d0e0g",
+      "name": "Get Auth0 Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "notes": "Obtains M2M access token from Auth0 for MCP server authentication"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "token-assignment",
+              "name": "auth_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "expires-assignment",
+              "name": "token_expires_at",
+              "value": "={{ Math.floor(Date.now()/1000) + $json.expires_in }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2c5f5g3f-0d9c-6e1f-1h5c-3g0d9c6e1f1h",
+      "name": "Store Token",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [680, 300],
+      "notes": "Stores token and expiration for reuse"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:5002/api/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.auth_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "3d6g6h4g-1e0d-7f2g-2i6d-4h1e0d7f2g2i",
+      "name": "Test Roaster Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300],
+      "notes": "Tests MCP server connection with Bearer token"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:5001/api/status",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Store Token').item.json.auth_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "4e7h7i5h-2f1e-8g3h-3j7e-5i2f1e8g3h3j",
+      "name": "Test First Crack Detection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 480],
+      "notes": "Tests First Crack MCP server connection"
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Auth0 Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Auth0 Token": {
+      "main": [
+        [
+          {
+            "node": "Store Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Token": {
+      "main": [
+        [
+          {
+            "node": "Test Roaster Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Test First Crack Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-26T19:45:00.000Z",
+  "versionId": "1"
+}

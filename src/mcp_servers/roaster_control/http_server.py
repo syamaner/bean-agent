@@ -128,9 +128,119 @@ async def health():
     }
 
 
-@app.get("/")
-async def root():
-    """Root endpoint (no auth required)."""
+@app.api_route("/", methods=["GET", "POST"])
+async def root(request: Request):
+    """Root endpoint (no auth required).
+    
+    GET: Returns API info
+    POST: Returns MCP tool definitions for n8n
+    """
+    if request.method == "POST":
+        return {
+        "tools": [
+            {
+                "name": "get_roast_status",
+                "description": "Get complete roast status including sensors, metrics, and timestamps",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "start_roaster",
+                "description": "Start roaster drum motor",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "stop_roaster",
+                "description": "Stop roaster drum motor",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "set_heat",
+                "description": "Set roaster heat level (0-100% in 10% increments)",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "percent": {
+                            "type": "integer",
+                            "description": "Heat level percentage (0-100 in 10% increments)",
+                            "minimum": 0,
+                            "maximum": 100
+                        }
+                    },
+                    "required": ["percent"]
+                }
+            },
+            {
+                "name": "set_fan",
+                "description": "Set roaster fan speed (0-100% in 10% increments)",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "percent": {
+                            "type": "integer",
+                            "description": "Fan speed percentage (0-100 in 10% increments)",
+                            "minimum": 0,
+                            "maximum": 100
+                        }
+                    },
+                    "required": ["percent"]
+                }
+            },
+            {
+                "name": "drop_beans",
+                "description": "Open bean drop door and start cooling",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "start_cooling",
+                "description": "Start cooling fan motor",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "stop_cooling",
+                "description": "Stop cooling fan motor",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "name": "report_first_crack",
+                "description": "Report first crack detection (called by agent after FC MCP detects)",
+                "input_schema": {
+                    "type": "object",
+                    "properties": {
+                        "timestamp": {
+                            "type": "string",
+                            "description": "ISO 8601 UTC timestamp when first crack occurred"
+                        },
+                        "temperature": {
+                            "type": "number",
+                            "description": "Bean temperature in °C at first crack"
+                        }
+                    },
+                    "required": ["timestamp", "temperature"]
+                }
+            }
+            }
+        ]
+    }
+    
+    # GET request - return API info
     return {
         "service": "roaster-control-mcp",
         "version": "1.0.0",

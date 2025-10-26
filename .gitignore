@@ -78,6 +78,9 @@ data/backups/**/*.wav
 .env.*.local
 set_env.sh
 
+# n8n local data (workflows, credentials, executions)
+.n8n/
+
 # Auth0 credentials - contains secrets
 docs/03-phase-3/AUTH0_SETUP.md
 Phase3/**bin/**/*

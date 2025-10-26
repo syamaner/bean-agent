@@ -229,7 +229,39 @@ def setup_mcp_server():
 # Routes
 
 async def root(request: Request):
-    """API info."""
+    """API info (GET) or MCP tool definitions (POST) for n8n."""
+    if request.method == "POST":
+        return JSONResponse({
+            "tools": [
+                {
+                    "name": "start_first_crack_detection",
+                    "description": "Start first crack detection monitoring",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "audio_source_type": {
+                                "type": "string",
+                                "enum": ["audio_file", "usb_microphone", "builtin_microphone"]
+                            },
+                            "audio_file_path": {"type": "string"},
+                            "detection_config": {"type": "object"}
+                        },
+                        "required": ["audio_source_type"]
+                    }
+                },
+                {
+                    "name": "get_first_crack_status",
+                    "description": "Get current detection status",
+                    "input_schema": {"type": "object", "properties": {}}
+                },
+                {
+                    "name": "stop_first_crack_detection",
+                    "description": "Stop detection and get summary",
+                    "input_schema": {"type": "object", "properties": {}}
+                }
+            ]
+        })
+    
     return JSONResponse({
         "name": "First Crack Detection MCP Server",
         "version": "1.0.0",
@@ -327,6 +359,28 @@ async def handle_sse(request: Request):
             status_code=401
         )
     
+    # Create custom send wrapper to add SSE headers
+    original_send = request._send
+    
+    async def send_with_sse_headers(message):
+        """Add SSE headers to prevent compression and buffering."""
+        if message["type"] == "http.response.start":
+            # Add headers to disable compression and enable streaming
+            headers = list(message.get("headers", []))
+            headers.extend([
+                (b"cache-control", b"no-cache"),
+                (b"x-accel-buffering", b"no"),  # Disable nginx buffering
+                (b"content-encoding", b"identity"),  # Explicitly no compression
+                (b"access-control-allow-origin", b"*"),  # CORS for n8n
+                (b"access-control-allow-methods", b"GET, POST, OPTIONS"),
+                (b"access-control-allow-headers", b"Authorization, Content-Type"),
+            ])
+            message["headers"] = headers
+        await original_send(message)
+    
+    # Replace request._send with our wrapper
+    request._send = send_with_sse_headers
+    
     # Auth passed, establish SSE connection
     async with sse_transport.connect_sse(request.scope, request.receive, request._send) as streams:
         await mcp_server.run(
@@ -340,9 +394,9 @@ async def handle_sse(request: Request):
 app = Starlette(
     debug=False,
     routes=[
-        Route("/", root),
+        Route("/", root, methods=["GET", "POST"]),
         Route("/health", health),
-        Route("/sse", handle_sse, methods=["GET"]),
+        Route("/sse", handle_sse, methods=["GET", "POST"]),  # Accept both GET and POST for n8n compatibility
         Mount("/messages", app=sse_transport.handle_post_message),
     ],
     # NO MIDDLEWARE - Auth handled in route handlers to avoid SSE issues

@@ -348,7 +348,19 @@ def setup_mcp_server():
 # Routes
 
 async def root(request: Request):
-    """API info."""
+    """API info (GET) or MCP tool definitions (POST) for n8n."""
+    if request.method == "POST":
+        return JSONResponse({"tools": [
+            {"name": "get_roast_status", "description": "Get complete roast status", "input_schema": {"type": "object", "properties": {}}},
+            {"name": "start_roaster", "description": "Start roaster drum motor", "input_schema": {"type": "object", "properties": {}}},
+            {"name": "stop_roaster", "description": "Stop roaster drum motor", "input_schema": {"type": "object", "properties": {}}},
+            {"name": "set_heat", "description": "Set heat level (0-100%)", "input_schema": {"type": "object", "properties": {"percent": {"type": "integer"}}, "required": ["percent"]}},
+            {"name": "set_fan", "description": "Set fan speed (0-100%)", "input_schema": {"type": "object", "properties": {"percent": {"type": "integer"}}, "required": ["percent"]}},
+            {"name": "drop_beans", "description": "Drop beans and start cooling", "input_schema": {"type": "object", "properties": {}}},
+            {"name": "start_cooling", "description": "Start cooling fan", "input_schema": {"type": "object", "properties": {}}},
+            {"name": "stop_cooling", "description": "Stop cooling fan", "input_schema": {"type": "object", "properties": {}}},
+            {"name": "report_first_crack", "description": "Report first crack", "input_schema": {"type": "object", "properties": {"timestamp": {"type": "string"}, "temperature": {"type": "number"}}, "required": ["timestamp", "temperature"]}}
+        ]})
     return JSONResponse({
         "name": "Roaster Control MCP Server",
         "version": "1.0.0",
@@ -423,6 +435,11 @@ sse_transport = SseServerTransport("/messages", security_settings)
 # SSE endpoint handler (as per MCP documentation)
 async def handle_sse(request: Request):
     """Handle SSE connection and run MCP server with Auth0 validation."""
+    # Log all incoming connection attempts
+    logger.info(f"SSE connection attempt from {request.client}")
+    logger.info(f"Headers: {dict(request.headers)}")
+    logger.info(f"Method: {request.method}")
+    
     # Validate Auth0 token BEFORE starting SSE
     try:
         auth_header = request.headers.get("Authorization", "")
@@ -458,6 +475,28 @@ async def handle_sse(request: Request):
             status_code=401
         )
     
+    # Create custom send wrapper to add SSE headers
+    original_send = request._send
+    
+    async def send_with_sse_headers(message):
+        """Add SSE headers to prevent compression and buffering."""
+        if message["type"] == "http.response.start":
+            # Add headers to disable compression and enable streaming
+            headers = list(message.get("headers", []))
+            headers.extend([
+                (b"cache-control", b"no-cache"),
+                (b"x-accel-buffering", b"no"),  # Disable nginx buffering
+                (b"content-encoding", b"identity"),  # Explicitly no compression
+                (b"access-control-allow-origin", b"*"),  # CORS for n8n
+                (b"access-control-allow-methods", b"GET, POST, OPTIONS"),
+                (b"access-control-allow-headers", b"Authorization, Content-Type"),
+            ])
+            message["headers"] = headers
+        await original_send(message)
+    
+    # Replace request._send with our wrapper
+    request._send = send_with_sse_headers
+    
     # Auth passed, establish SSE connection
     logger.info("SSE connection established, starting MCP server...")
     async with sse_transport.connect_sse(request.scope, request.receive, request._send) as streams:
@@ -475,9 +514,9 @@ async def handle_sse(request: Request):
 app = Starlette(
     debug=False,
     routes=[
-        Route("/", root),
+        Route("/", root, methods=["GET", "POST"]),
         Route("/health", health),
-        Route("/sse", handle_sse, methods=["GET"]),
+        Route("/sse", handle_sse, methods=["GET", "POST"]),  # Accept both GET and POST for n8n compatibility
         Mount("/messages", app=sse_transport.handle_post_message),
     ],
     # NO MIDDLEWARE - Auth handled in route handlers to avoid SSE issues
