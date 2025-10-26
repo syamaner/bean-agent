@@ -80,5 +80,8 @@ set_env.sh
 
 # Auth0 credentials - contains secrets
 docs/03-phase-3/AUTH0_SETUP.md
-Phase3/CoffeeRoasting.AppHost/bin/**/*
-Phase3/CoffeeRoasting.AppHost/obj/**/*
+Phase3/**bin/**/*
+Phase3/**/obj/**/*
+Phase3/workflows/nodes/package.json
+src/orchestration/aspire/bin/**/*
+src/orchestration/aspire/obj/**/*

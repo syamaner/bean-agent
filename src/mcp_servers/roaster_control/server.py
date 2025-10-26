@@ -38,6 +38,8 @@ def init_server(config: Optional[ServerConfig] = None) -> None:
     use_mock = os.getenv("USE_MOCK_HARDWARE", "false").lower() == "true"
     
     if use_mock:
+        # Override config to reflect mock mode
+        config.hardware.mock_mode = True
         hardware = MockRoaster()
     else:
         config.validate()
