@@ -5,7 +5,6 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from typing import Union
 import logging
-import time
 
 
 def get_local_timezone() -> ZoneInfo:
@@ -38,8 +37,6 @@ def get_local_timezone() -> ZoneInfo:
         pass
     
     # Last resort: return UTC if we can't determine local timezone
-    import datetime as dt_module
-    from datetime import timezone as dt_timezone
     return ZoneInfo('UTC')
 
 

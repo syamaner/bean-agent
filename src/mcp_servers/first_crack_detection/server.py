@@ -9,7 +9,6 @@ Transport: stdio (JSON-RPC over stdin/stdout)
 """
 import asyncio
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -25,10 +24,8 @@ from .models import (
     ModelNotFoundError,
     MicrophoneNotAvailableError,
     FileNotFoundError as FCFileNotFoundError,
-    SessionAlreadyActiveError,
     ThreadCrashError,
     InvalidAudioSourceError,
-    DetectionError,
 )
 from .utils import setup_logging
 
@@ -42,8 +39,7 @@ try:
         setup_tracing,
         FirstCrackMetrics,
         get_logger as get_otel_logger,
-        trace_span,
-        get_tracer
+        trace_span
     )
     OBSERVABILITY_ENABLED = True
 except ImportError:

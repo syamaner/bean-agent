@@ -21,7 +21,6 @@ Configure in Warp (.warp/mcp_settings.json):
   }
 }
 """
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -30,7 +29,6 @@ from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from mcp.server import Server
@@ -45,8 +43,7 @@ from .hardware import MockRoaster
 from src.mcp_servers.shared.auth0_middleware import (
     validate_auth0_token,
     check_scope,
-    get_client_info,
-    log_client_action
+    get_client_info
 )
 
 # Import shared OpenTelemetry configuration
@@ -157,7 +154,7 @@ def setup_mcp_server():
         raise ValueError(f"Unknown resource: {uri}")
     
     @mcp_server.list_tools()
-    async def list_tools(request_context=None) -> list[Tool]:
+    async def list_tools() -> list[Tool]:
         # Get scopes from context if available (set by transport)
         # For now, return all tools - MCP doesn't expose request context in list_tools
         # Access control happens at call_tool level
@@ -286,7 +283,7 @@ def setup_mcp_server():
         return all_tools
     
     @mcp_server.call_tool()
-    async def call_tool(name: str, arguments: dict, request_context=None) -> list[TextContent]:
+    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         """Handle tool calls with scope-based access control."""
         from src.mcp_servers.shared.otel_config import get_tracer
         tracer = get_tracer("roaster-control.mcp")

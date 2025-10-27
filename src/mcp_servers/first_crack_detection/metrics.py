@@ -4,7 +4,7 @@ First Crack Detection domain-specific metrics.
 Implements observability requirements from docs/observability_requirements.md
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from opentelemetry import metrics

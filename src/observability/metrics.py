@@ -5,7 +5,7 @@ Defines metrics classes for First Crack Detection, Roaster Control, and Agent.
 All metrics are automatically exported to .NET Aspire dashboard via OTLP.
 """
 import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 from opentelemetry import metrics
 from opentelemetry.sdk.metrics import MeterProvider

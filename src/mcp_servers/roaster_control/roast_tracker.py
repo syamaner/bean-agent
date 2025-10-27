@@ -7,7 +7,7 @@ Tracks roast events and computes metrics:
 - Total roast duration
 """
 import logging
-from datetime import datetime, UTC
+from datetime import datetime
 from typing import Optional, Deque, Tuple
 from collections import deque
 

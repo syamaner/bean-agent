@@ -16,7 +16,6 @@ import os
 import time
 import logging
 from typing import Optional
-from functools import lru_cache
 
 import requests
 from jose import jwt, JWTError

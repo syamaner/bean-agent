@@ -4,7 +4,6 @@ Audio data augmentation utilities.
 Applies simple waveform-level augmentations compatible with AST feature extraction.
 """
 from __future__ import annotations
-from typing import Callable, Optional
 
 import numpy as np
 import torch

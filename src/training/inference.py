@@ -7,7 +7,7 @@ Processes long audio files with overlapping windows to detect first crack events
 import argparse
 import sys
 from pathlib import Path
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 from dataclasses import dataclass
 from datetime import timedelta
 

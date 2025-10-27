@@ -7,7 +7,7 @@ Tests batching, shuffling, and ensures data can be loaded efficiently.
 from pathlib import Path
 
 import torch
-from audio_dataset import create_dataloaders, FirstCrackDataset
+from audio_dataset import create_dataloaders
 
 
 def test_dataloader():

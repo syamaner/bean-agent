@@ -27,12 +27,10 @@ class HardwareInterface(ABC):
         Returns:
             True if connection successful, False otherwise
         """
-        pass
     
     @abstractmethod
     def disconnect(self):
         """Disconnect from hardware and cleanup resources."""
-        pass
     
     @abstractmethod
     def is_connected(self) -> bool:
@@ -41,7 +39,6 @@ class HardwareInterface(ABC):
         Returns:
             True if connected and ready, False otherwise
         """
-        pass
     
     @abstractmethod
     def get_roaster_info(self) -> dict:
@@ -50,7 +47,6 @@ class HardwareInterface(ABC):
         Returns:
             Dict with keys: 'brand', 'model', 'version'
         """
-        pass
     
     @abstractmethod
     def is_drum_running(self) -> bool:
@@ -59,7 +55,6 @@ class HardwareInterface(ABC):
         Returns:
             True if drum is running, False otherwise
         """
-        pass
     
     # More methods will be defined in Milestone 3
 

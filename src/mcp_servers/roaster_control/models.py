@@ -36,7 +36,7 @@ class HardwareConfig(BaseModel):
     
     @field_validator('baud_rate')
     @classmethod
-    def validate_baud_rate(cls, v: int) -> int:
+    def validate_baud_rate(_cls, v: int) -> int:
         """Validate baud rate is a standard value."""
         valid_rates = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600]
         if v not in valid_rates:
@@ -56,7 +56,7 @@ class TrackerConfig(BaseModel):
     
     @field_validator('development_time_target_max')
     @classmethod
-    def validate_dev_time_range(cls, v: float, info) -> float:
+    def validate_dev_time_range(_cls, v: float, info) -> float:
         """Validate max is greater than min."""
         if 'development_time_target_min' in info.data:
             min_val = info.data['development_time_target_min']
@@ -77,7 +77,7 @@ class ServerConfig(BaseModel):
     
     @field_validator('logging_level')
     @classmethod
-    def validate_logging_level(cls, v: str) -> str:
+    def validate_logging_level(_cls, v: str) -> str:
         """Validate logging level is valid."""
         valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         v_upper = v.upper()

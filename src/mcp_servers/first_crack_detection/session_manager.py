@@ -25,7 +25,7 @@ from .models import (
     FileNotFoundError as FCFileNotFoundError,
     MicrophoneNotAvailableError,
 )
-from .utils import get_local_timezone, to_local_time, format_elapsed_time
+from .utils import to_local_time, format_elapsed_time
 from .audio_devices import find_usb_microphone, find_builtin_microphone
 from src.inference.first_crack_detector import FirstCrackDetector
 from .metrics import FirstCrackMetrics

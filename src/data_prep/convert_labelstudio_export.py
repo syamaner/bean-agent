@@ -11,7 +11,6 @@ Output: One JSON per audio file in the output directory.
 """
 import argparse
 import json
-import os
 from pathlib import Path
 from typing import Any, Dict, List
 

@@ -21,7 +21,6 @@ Configure in Warp (.warp/mcp_settings.json):
   }
 }
 """
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -30,7 +29,6 @@ from starlette.applications import Starlette
 from starlette.routing import Route, Mount
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
-from starlette.middleware import Middleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from mcp.server import Server
@@ -45,8 +43,7 @@ from .utils import setup_logging
 from src.mcp_servers.shared.auth0_middleware import (
     validate_auth0_token,
     check_scope,
-    get_client_info,
-    log_client_action
+    get_client_info
 )
 
 # Import shared OpenTelemetry configuration
