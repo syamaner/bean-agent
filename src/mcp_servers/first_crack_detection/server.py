@@ -63,144 +63,145 @@ if OBSERVABILITY_ENABLED:
     metrics = None
 
 
-def register_tools():
-    """Register all MCP tools and resources."""
-    
-    # Health resource
-    @server.list_resources()
-    async def list_resources() -> list:
-        """List available resources."""
-        return [
-            Resource(
-                uri="health://status",
-                name="Server Health",
-                description="Health check and server status",
-                mimeType="application/json"
-            )
-        ]
-    
-    @server.read_resource()
-    async def read_resource(uri: str) -> ReadResourceResult:
-        """Read resource content."""
-        if uri == "health://status":
-            import json
-            import torch
-            
-            health_data = {
-                "status": "healthy",
-                "model_checkpoint": config.model_checkpoint,
-                "model_exists": Path(config.model_checkpoint).exists(),
-                "device": "mps" if torch.backends.mps.is_available() else "cpu",
-                "version": "1.0.0",
-                "session_active": session_manager.current_session is not None
-            }
-            
-            if session_manager.current_session:
-                health_data["session_id"] = session_manager.current_session.session_id
-                health_data["session_started_at"] = str(session_manager.current_session.started_at)
-            
-            return ReadResourceResult(
-                contents=[TextContent(
-                    type="text",
-                    text=json.dumps(health_data, indent=2)
-                )]
-            )
-        else:
-            raise ValueError(f"Unknown resource: {uri}")
-    
-    @server.list_tools()
-    async def list_tools() -> list[Tool]:
-        """List available tools."""
-        return [
-            Tool(
-                name="start_first_crack_detection",
-                description="Start first crack detection monitoring with audio file, USB microphone, or built-in microphone",
-                inputSchema={
-                    "type": "object",
-                    "properties": {
-                        "audio_source_type": {
-                            "type": "string",
-                            "enum": ["audio_file", "usb_microphone", "builtin_microphone"],
-                            "description": "Type of audio source to use"
-                        },
-                        "audio_file_path": {
-                            "type": "string",
-                            "description": "Path to audio file (required if audio_source_type is 'audio_file')"
-                        },
-                        "detection_config": {
-                            "type": "object",
-                            "properties": {
-                                "threshold": {
-                                    "type": "number",
-                                    "minimum": 0.0,
-                                    "maximum": 1.0,
-                                    "description": "Detection threshold (default: 0.5)"
-                                },
-                                "min_pops": {
-                                    "type": "integer",
-                                    "minimum": 1,
-                                    "description": "Minimum pops to confirm (default: 3)"
-                                },
-                                "confirmation_window": {
-                                    "type": "number",
-                                    "minimum": 1.0,
-                                    "description": "Confirmation window in seconds (default: 30.0)"
-                                }
-                            },
-                            "description": "Optional detection parameters"
-                        }
+# Register MCP tools and resources at module load time
+# Health resource
+@server.list_resources()
+async def list_resources_impl() -> list:
+    """List available resources."""
+    return [
+        Resource(
+            uri="health://status",
+            name="Server Health",
+            description="Health check and server status",
+            mimeType="application/json"
+        )
+    ]
+
+
+@server.read_resource()
+async def read_resource_impl(uri: str) -> ReadResourceResult:
+    """Read resource content."""
+    if uri == "health://status":
+        import json
+        import torch
+        
+        health_data = {
+            "status": "healthy",
+            "model_checkpoint": config.model_checkpoint if config else "not_loaded",
+            "model_exists": Path(config.model_checkpoint).exists() if config else False,
+            "device": "mps" if torch.backends.mps.is_available() else "cpu",
+            "version": "1.0.0",
+            "session_active": session_manager.current_session is not None if session_manager else False
+        }
+        
+        if session_manager and session_manager.current_session:
+            health_data["session_id"] = session_manager.current_session.session_id
+            health_data["session_started_at"] = str(session_manager.current_session.started_at)
+        
+        return ReadResourceResult(
+            contents=[TextContent(
+                type="text",
+                text=json.dumps(health_data, indent=2)
+            )]
+        )
+    else:
+        raise ValueError(f"Unknown resource: {uri}")
+
+
+@server.list_tools()
+async def list_tools_impl() -> list[Tool]:
+    """List available tools."""
+    return [
+        Tool(
+            name="start_first_crack_detection",
+            description="Start first crack detection monitoring with audio file, USB microphone, or built-in microphone",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "audio_source_type": {
+                        "type": "string",
+                        "enum": ["audio_file", "usb_microphone", "builtin_microphone"],
+                        "description": "Type of audio source to use"
                     },
-                    "required": ["audio_source_type"]
-                }
-            ),
-            Tool(
-                name="get_first_crack_status",
-                description="Get current first crack detection status",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            ),
-            Tool(
-                name="stop_first_crack_detection",
-                description="Stop first crack detection and get session summary",
-                inputSchema={
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            )
-        ]
-    
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-        """Handle tool calls."""
-        try:
-            if name == "start_first_crack_detection":
-                result = await handle_start_detection(arguments)
-            elif name == "get_first_crack_status":
-                result = await handle_get_status(arguments)
-            elif name == "stop_first_crack_detection":
-                result = await handle_stop_detection(arguments)
-            else:
-                result = {"error": f"Unknown tool: {name}"}
-            
-            import json
-            return [TextContent(
-                type="text",
-                text=json.dumps(result, indent=2, default=str)
-            )]
-        except Exception as e:
-            logger.error(f"Tool call error: {e}", exc_info=True)
-            import json
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "error": str(e),
-                    "type": type(e).__name__
-                }, indent=2)
-            )]
+                    "audio_file_path": {
+                        "type": "string",
+                        "description": "Path to audio file (required if audio_source_type is 'audio_file')"
+                    },
+                    "detection_config": {
+                        "type": "object",
+                        "properties": {
+                            "threshold": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                                "description": "Detection threshold (default: 0.5)"
+                            },
+                            "min_pops": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "description": "Minimum pops to confirm (default: 3)"
+                            },
+                            "confirmation_window": {
+                                "type": "number",
+                                "minimum": 1.0,
+                                "description": "Confirmation window in seconds (default: 30.0)"
+                            }
+                        },
+                        "description": "Optional detection parameters"
+                    }
+                },
+                "required": ["audio_source_type"]
+            }
+        ),
+        Tool(
+            name="get_first_crack_status",
+            description="Get current first crack detection status",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        ),
+        Tool(
+            name="stop_first_crack_detection",
+            description="Stop first crack detection and get session summary",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        )
+    ]
+
+
+@server.call_tool()
+async def call_tool_impl(name: str, arguments: dict) -> list[TextContent]:
+    """Handle tool calls."""
+    try:
+        if name == "start_first_crack_detection":
+            result = await handle_start_detection(arguments)
+        elif name == "get_first_crack_status":
+            result = await handle_get_status(arguments)
+        elif name == "stop_first_crack_detection":
+            result = await handle_stop_detection(arguments)
+        else:
+            result = {"error": f"Unknown tool: {name}"}
+        
+        import json
+        return [TextContent(
+            type="text",
+            text=json.dumps(result, indent=2, default=str)
+        )]
+    except Exception as e:
+        logger.error(f"Tool call error: {e}", exc_info=True)
+        import json
+        return [TextContent(
+            type="text",
+            text=json.dumps({
+                "error": str(e),
+                "type": type(e).__name__
+            }, indent=2)
+        )]
 
 
 async def handle_start_detection(arguments: dict) -> dict:
@@ -380,8 +381,7 @@ async def main():
         logger.error(f"Failed to initialize session manager: {e}")
         raise
     
-    # Register tools
-    register_tools()
+    # Tools are registered at module load time via decorators
     logger.info("MCP Server initialized with tools, waiting for connections...")
     if OBSERVABILITY_ENABLED and otel_logger:
         otel_logger.info("MCP server ready", extra={"service": "first-crack-mcp"})

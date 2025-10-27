@@ -88,18 +88,18 @@ def test_find_usb_microphone_returns_none_if_not_found():
         assert result is None
 
 
-def test_find_usb_microphone_skips_default_device():
-    """Test USB detection skips default device (usually built-in)."""
+def test_find_usb_microphone_prioritizes_usb_pnp():
+    """Test USB detection prioritizes USB PnP Audio devices even if default."""
     from src.mcp_servers.first_crack_detection.audio_devices import find_usb_microphone
     
     with patch('src.mcp_servers.first_crack_detection.audio_devices.list_audio_devices') as mock_list:
         mock_list.return_value = [
-            {"index": 0, "name": "USB Audio (default)", "default": True},  # Skip this
-            {"index": 1, "name": "USB Microphone", "default": False},
+            {"index": 0, "name": "USB PnP Audio Device", "default": True},  # Should find this
+            {"index": 1, "name": "MacBook Pro Microphone", "default": False},
         ]
         
         result = find_usb_microphone()
-        assert result == 1  # Should return the non-default USB device
+        assert result == 0  # Should return the USB PnP device even though it's default
 
 
 def test_find_builtin_microphone_returns_default():
