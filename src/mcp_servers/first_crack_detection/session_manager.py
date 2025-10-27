@@ -28,6 +28,7 @@ from .models import (
 from .utils import get_local_timezone, to_local_time, format_elapsed_time
 from .audio_devices import find_usb_microphone, find_builtin_microphone
 from src.inference.first_crack_detector import FirstCrackDetector
+from .metrics import FirstCrackMetrics
 
 
 logger = logging.getLogger(__name__)
@@ -43,15 +44,17 @@ class DetectionSessionManager:
     - Idempotent start/stop operations
     """
     
-    def __init__(self, config: ServerConfig):
+    def __init__(self, config: ServerConfig, metrics: Optional[FirstCrackMetrics] = None):
         """
         Initialize session manager.
         
         Args:
             config: Server configuration
+            metrics: Optional FirstCrackMetrics instance for telemetry
         """
         self.config = config
         self.current_session: Optional[DetectionSession] = None
+        self.metrics = metrics
         self._lock = threading.Lock()
         logger.info(f"DetectionSessionManager initialized with checkpoint: {config.model_checkpoint}")
     
@@ -329,6 +332,15 @@ class DetectionSessionManager:
             status.first_crack_time_relative = time_str
             status.first_crack_time_utc = first_crack_utc
             status.first_crack_time_local = to_local_time(first_crack_utc)
+            
+            # Record metrics (only once per session)
+            if self.metrics and not hasattr(session, '_metrics_recorded'):
+                self.metrics.record_first_crack(
+                    timestamp=first_crack_utc,
+                    elapsed_seconds=offset_seconds,
+                    microphone_type=session.audio_config.audio_source_type
+                )
+                session._metrics_recorded = True
         
         return status
     

@@ -11,6 +11,8 @@
         "DOTNET_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "https://localhost:21240",
         "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "https://localhost:22130",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
         "Parameters__use-mock-hardware": "false"
       }
     },
@@ -24,6 +26,8 @@
         "DOTNET_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19065",
         "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20133",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
         "Parameters__use-mock-hardware": "false"
       }
     },
@@ -37,6 +41,8 @@
         "DOTNET_ENVIRONMENT": "Development",
         "DOTNET_DASHBOARD_OTLP_ENDPOINT_URL": "http://localhost:19065",
         "DOTNET_RESOURCE_SERVICE_ENDPOINT_URL": "http://localhost:20133",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+        "ASPIRE_ALLOW_UNSECURED_TRANSPORT": "true",
         "Parameters__use-mock-hardware": "true"
       }
     }

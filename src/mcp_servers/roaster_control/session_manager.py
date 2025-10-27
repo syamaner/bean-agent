@@ -11,6 +11,7 @@ from .hardware import HardwareInterface
 from .roast_tracker import RoastTracker
 from .models import ServerConfig, RoastStatus, SensorReading
 from .utils import get_timestamps
+from .metrics import RoasterMetrics
 
 
 class RoastSessionManager:
@@ -23,16 +24,18 @@ class RoastSessionManager:
     - Thread-safe status queries
     """
     
-    def __init__(self, hardware: HardwareInterface, config: ServerConfig):
+    def __init__(self, hardware: HardwareInterface, config: ServerConfig, metrics: Optional[RoasterMetrics] = None):
         """Initialize session manager.
         
         Args:
             hardware: Hardware interface (MockRoaster or HottopRoaster)
             config: Server configuration
+            metrics: Optional RoasterMetrics instance for telemetry
         """
         self._hardware = hardware
         self._config = config
         self._tracker = RoastTracker(config.tracker)
+        self._metrics = metrics
         
         # Session state
         self._session_active = False
@@ -118,6 +121,17 @@ class RoastSessionManager:
                 with self._lock:
                     self._tracker.update(reading)
                     self._latest_reading = reading
+                    
+                    # Record sensor metrics
+                    if self._metrics:
+                        timestamp = reading.timestamp
+                        self._metrics.record_bean_temperature(reading.bean_temp_c, timestamp)
+                        self._metrics.record_environment_temperature(reading.chamber_temp_c, timestamp)
+                        
+                        # Record RoR if available from tracker
+                        roast_metrics = self._tracker.get_metrics()
+                        if roast_metrics.rate_of_rise_c_per_min is not None:
+                            self._metrics.record_rate_of_rise(roast_metrics.rate_of_rise_c_per_min, timestamp)
             
             except Exception as e:
                 # Log error but don't crash thread
@@ -131,12 +145,18 @@ class RoastSessionManager:
         logger.info(f"🔥 COMMAND: set_heat({percent}%)")
         with self._lock:
             self._hardware.set_heat(percent)
+            # Record metric
+            if self._metrics:
+                self._metrics.record_heat_level_change(float(percent), datetime.now(UTC))
     
     def set_fan(self, percent: int):
         """Set fan speed."""
         logger.info(f"💨 COMMAND: set_fan({percent}%)")
         with self._lock:
             self._hardware.set_fan(percent)
+            # Record metric
+            if self._metrics:
+                self._metrics.record_fan_speed_change(float(percent), datetime.now(UTC))
     
     def start_roaster(self):
         """Start roaster drum."""
@@ -153,14 +173,19 @@ class RoastSessionManager:
     def drop_beans(self):
         """Drop beans and record in tracker."""
         logger.warning(f"⬇️  COMMAND: drop_beans() - DROPPING BEANS")
+        timestamp = datetime.now(UTC)
         with self._lock:
             self._hardware.drop_beans()
             # Record drop with current temperature
             if self._latest_reading is not None:
-                self._tracker.record_drop(
-                    datetime.now(UTC),
-                    self._latest_reading.bean_temp_c
-                )
+                self._tracker.record_drop(timestamp, self._latest_reading.bean_temp_c)
+                # Record metrics
+                if self._metrics:
+                    self._metrics.record_drop_temperature(self._latest_reading.bean_temp_c, timestamp)
+                    # Record roast duration
+                    if self._tracker.get_t0():
+                        duration_sec = (timestamp - self._tracker.get_t0()).total_seconds()
+                        self._metrics.record_roast_duration(duration_sec, timestamp)
     
     def start_cooling(self):
         """Start cooling fan."""
@@ -183,6 +208,9 @@ class RoastSessionManager:
             # Only report if we have a temperature
             if temp_c is not None:
                 self._tracker.report_first_crack(when, temp_c)
+                # Record metric
+                if self._metrics:
+                    self._metrics.record_first_crack_temperature(temp_c, when)
     
     # ----- Status Queries -----
     def get_status(self) -> RoastStatus:
