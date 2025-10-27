@@ -221,9 +221,19 @@ class DetectionSessionManager:
                 confirmation_window=self.config.default_confirmation_window
             )
         else:  # usb_microphone or builtin_microphone
+            # Find appropriate device
+            device_index = None
+            if audio_config.audio_source_type == "usb_microphone":
+                device_index = find_usb_microphone()
+                logger.info(f"Using USB microphone at device index {device_index}")
+            elif audio_config.audio_source_type == "builtin_microphone":
+                device_index = find_builtin_microphone()
+                logger.info(f"Using built-in microphone at device index {device_index}")
+            
             # Microphone-based detection
             detector = FirstCrackDetector(
                 use_microphone=True,
+                device_index=device_index,
                 checkpoint_path=self.config.model_checkpoint,
                 threshold=self.config.default_threshold,
                 min_pops=self.config.default_min_pops,

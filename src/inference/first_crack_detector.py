@@ -53,6 +53,7 @@ class FirstCrackDetector:
         self,
         audio_file: Optional[Union[str, Path]] = None,
         use_microphone: bool = False,
+        device_index: Optional[int] = None,
         checkpoint_path: Optional[Union[str, Path]] = None,
         model_config: Optional[ModelInitConfig] = None,
         window_size: float = 10.0,
@@ -67,7 +68,8 @@ class FirstCrackDetector:
         
         Args:
             audio_file: Path to audio file (mutually exclusive with use_microphone)
-            use_microphone: Use USB microphone for live input (default: False)
+            use_microphone: Use microphone for live input (default: False)
+            device_index: Audio device index for microphone (None = default device)
             checkpoint_path: Path to model checkpoint (required if using trained model)
             model_config: Model configuration (optional, defaults to standard config)
             window_size: Size of sliding window in seconds (default: 10.0)
@@ -86,6 +88,7 @@ class FirstCrackDetector:
         # Input configuration
         self.audio_file = Path(audio_file) if audio_file else None
         self.use_microphone = use_microphone
+        self.device_index = device_index
         
         # Model parameters
         self.window_size = window_size
@@ -248,13 +251,20 @@ class FirstCrackDetector:
                     self._audio_buffer.extend(audio_data)
             
             # Start audio stream
-            with sd.InputStream(
-                samplerate=self.sample_rate,
-                channels=1,
-                callback=audio_callback,
-                blocksize=int(self.sample_rate * 0.5),  # 0.5 second blocks
-            ):
-                print(f"Microphone stream started (sample rate: {self.sample_rate} Hz)")
+            stream_params = {
+                "samplerate": self.sample_rate,
+                "channels": 1,
+                "callback": audio_callback,
+                "blocksize": int(self.sample_rate * 0.5),  # 0.5 second blocks
+            }
+            
+            # Add device index if specified
+            if self.device_index is not None:
+                stream_params["device"] = self.device_index
+            
+            with sd.InputStream(**stream_params):
+                device_info = f" on device {self.device_index}" if self.device_index is not None else " (default device)"
+                print(f"Microphone stream started{device_info} (sample rate: {self.sample_rate} Hz)")
                 window_index = 0
                 
                 while self._running:

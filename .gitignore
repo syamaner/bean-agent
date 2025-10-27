@@ -92,3 +92,5 @@ Phase3/**/obj/**/*
 Phase3/workflows/nodes/package.json
 src/orchestration/aspire/bin/**/*
 src/orchestration/aspire/obj/**/*
+.history-backup/database.sqlite.1761518222
+sanitize_auth0_secret.sh
