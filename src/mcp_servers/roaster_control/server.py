@@ -12,9 +12,33 @@ from .hardware import MockRoaster
 from .models import ServerConfig
 from .exceptions import RoasterError
 
+# Add parent directories to path for observability
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Import observability
+try:
+    from observability import (
+        setup_logging as setup_otel_logging,
+        setup_tracing,
+        RoasterMetrics,
+        get_logger as get_otel_logger,
+        trace_span,
+        get_tracer
+    )
+    OBSERVABILITY_ENABLED = True
+except ImportError:
+    print("Warning: Observability package not available", file=sys.stderr)
+    OBSERVABILITY_ENABLED = False
+
 # Global state
 _session_manager: Optional[RoastSessionManager] = None
 _config: Optional[ServerConfig] = None
+
+# Observability instances
+if OBSERVABILITY_ENABLED:
+    otel_logger = None
+    tracer = None
+    metrics = None
 
 # Create MCP server
 server = Server("roaster-control")
@@ -29,7 +53,18 @@ def init_server(config: Optional[ServerConfig] = None) -> None:
     Raises:
         ValueError: If configuration is invalid
     """
-    global _session_manager, _config
+    global _session_manager, _config, otel_logger, tracer, metrics
+    
+    # Initialize observability
+    if OBSERVABILITY_ENABLED:
+        try:
+            setup_otel_logging("roaster-control-mcp")
+            tracer = setup_tracing("roaster-control-mcp")
+            metrics = RoasterMetrics("roaster-control-mcp")
+            otel_logger = get_otel_logger(__name__)
+            otel_logger.info("Observability initialized")
+        except Exception as e:
+            print(f"Failed to initialize observability: {e}", file=sys.stderr)
     
     if config is None:
         config = ServerConfig()
@@ -41,13 +76,20 @@ def init_server(config: Optional[ServerConfig] = None) -> None:
         # Override config to reflect mock mode
         config.hardware.mock_mode = True
         hardware = MockRoaster()
+        if OBSERVABILITY_ENABLED and otel_logger:
+            otel_logger.info("Using mock roaster hardware")
     else:
         config.validate()
         from .hardware import HottopRoaster
         hardware = HottopRoaster(port=config.hardware.port)
+        if OBSERVABILITY_ENABLED and otel_logger:
+            otel_logger.info("Using real Hottop hardware", extra={"port": config.hardware.port})
     
     _config = config
     _session_manager = RoastSessionManager(hardware, _config)
+    
+    if OBSERVABILITY_ENABLED and otel_logger:
+        otel_logger.info("Roaster session manager initialized")
 
 
 # ----- Tool Implementations -----
@@ -169,7 +211,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     try:
         if name == "set_heat":
             level = arguments["level"]
-            _session_manager.set_heat(level)
+            
+            if OBSERVABILITY_ENABLED and otel_logger:
+                otel_logger.info("Setting heat level", extra={"level": level})
+            
+            if OBSERVABILITY_ENABLED and tracer:
+                with trace_span(tracer, "set_heat", {"level": level}):
+                    _session_manager.set_heat(level)
+            else:
+                _session_manager.set_heat(level)
+            
+            # Record metric
+            if OBSERVABILITY_ENABLED and metrics:
+                metrics.record_heat_adjustment(datetime.now(datetime.UTC), level)
+            
             return [TextContent(
                 type="text",
                 text=f"Heat set to {level}%"
@@ -177,7 +232,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         
         elif name == "set_fan":
             speed = arguments["speed"]
-            _session_manager.set_fan(speed)
+            
+            if OBSERVABILITY_ENABLED and otel_logger:
+                otel_logger.info("Setting fan speed", extra={"speed": speed})
+            
+            if OBSERVABILITY_ENABLED and tracer:
+                with trace_span(tracer, "set_fan", {"speed": speed}):
+                    _session_manager.set_fan(speed)
+            else:
+                _session_manager.set_fan(speed)
+            
+            # Record metric
+            if OBSERVABILITY_ENABLED and metrics:
+                metrics.record_fan_adjustment(datetime.now(datetime.UTC), speed)
+            
             return [TextContent(
                 type="text",
                 text=f"Fan set to {speed}%"
@@ -251,7 +319,30 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             )]
         
         elif name == "get_roast_status":
-            status = _session_manager.get_status()
+            if OBSERVABILITY_ENABLED and tracer:
+                with trace_span(tracer, "get_roast_status"):
+                    status = _session_manager.get_status()
+            else:
+                status = _session_manager.get_status()
+            
+            # Record sensor metrics
+            if OBSERVABILITY_ENABLED and metrics and status.sensors:
+                from datetime import timezone
+                metrics.record_sensors(
+                    utc_timestamp=datetime.now(timezone.utc),
+                    bean_temp_c=status.sensors.bean_temp,
+                    chamber_temp_c=status.sensors.chamber_temp,
+                    fan_speed_pct=float(status.sensors.fan_speed),
+                    heat_level_pct=float(status.sensors.heat_level)
+                )
+                
+                # Record calculated metrics if available
+                if status.metrics:
+                    metrics.record_calculated_metrics(
+                        utc_timestamp=datetime.now(timezone.utc),
+                        rate_of_rise_c_per_min=status.metrics.rate_of_rise_c_per_min,
+                        development_time_pct=status.metrics.development_time_percent
+                    )
             
             # Convert to dict for JSON serialization
             import json
