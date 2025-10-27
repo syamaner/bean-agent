@@ -3,7 +3,6 @@
 Test MCP SSE connection with detailed debugging
 """
 import os
-import sys
 import requests
 import asyncio
 import traceback

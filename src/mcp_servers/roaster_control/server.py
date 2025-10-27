@@ -22,8 +22,7 @@ try:
         setup_tracing,
         RoasterMetrics,
         get_logger as get_otel_logger,
-        trace_span,
-        get_tracer
+        trace_span
     )
     OBSERVABILITY_ENABLED = True
 except ImportError:
@@ -223,7 +222,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             
             # Record metric
             if OBSERVABILITY_ENABLED and metrics:
-                metrics.record_heat_adjustment(datetime.now(datetime.UTC), level)
+                from datetime import timezone
+                metrics.record_heat_adjustment(datetime.now(timezone.utc), level)
             
             return [TextContent(
                 type="text",
@@ -244,7 +244,8 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
             
             # Record metric
             if OBSERVABILITY_ENABLED and metrics:
-                metrics.record_fan_adjustment(datetime.now(datetime.UTC), speed)
+                from datetime import timezone
+                metrics.record_fan_adjustment(datetime.now(timezone.utc), speed)
             
             return [TextContent(
                 type="text",
@@ -330,10 +331,10 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
                 from datetime import timezone
                 metrics.record_sensors(
                     utc_timestamp=datetime.now(timezone.utc),
-                    bean_temp_c=status.sensors.bean_temp,
-                    chamber_temp_c=status.sensors.chamber_temp,
-                    fan_speed_pct=float(status.sensors.fan_speed),
-                    heat_level_pct=float(status.sensors.heat_level)
+                    bean_temp_c=status.sensors.bean_temp_c,
+                    chamber_temp_c=status.sensors.chamber_temp_c,
+                    fan_speed_pct=float(status.sensors.fan_speed_percent),
+                    heat_level_pct=float(status.sensors.heat_level_percent)
                 )
                 
                 # Record calculated metrics if available

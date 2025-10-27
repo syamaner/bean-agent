@@ -16,7 +16,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.ast_model import FirstCrackClassifier, ModelInitConfig
-from inference import SlidingWindowInference, DetectionEvent
+from inference import SlidingWindowInference
 
 
 def process_directory(

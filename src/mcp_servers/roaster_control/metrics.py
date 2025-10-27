@@ -4,7 +4,7 @@ Roaster Control domain-specific metrics.
 Implements observability requirements from docs/observability_requirements.md
 """
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from opentelemetry import metrics
@@ -108,12 +108,12 @@ class RoasterMetrics:
         self._cached_bean_temp: Optional[float] = None
         self._cached_env_temp: Optional[float] = None
     
-    def _get_bean_temp(self, options):
+    def _get_bean_temp(self, _options):
         """Callback for observable bean temperature gauge."""
         if self._cached_bean_temp is not None:
             yield metrics.Observation(self._cached_bean_temp, {})
     
-    def _get_env_temp(self, options):
+    def _get_env_temp(self, _options):
         """Callback for observable environment temperature gauge."""
         if self._cached_env_temp is not None:
             yield metrics.Observation(self._cached_env_temp, {})

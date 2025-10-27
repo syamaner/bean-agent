@@ -2,10 +2,8 @@
 """
 Quick test for AST model loading and forward pass on MPS (if available).
 """
-from pathlib import Path
 
 import torch
-import numpy as np
 
 from ast_model import FirstCrackClassifier, ModelInitConfig
 

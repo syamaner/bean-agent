@@ -6,7 +6,7 @@ Models define the structure and validation for:
 - Request/response data (session info, status, summary)
 - Internal state (detection session)
 """
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional, Literal, Dict, Any
 from pydantic import BaseModel, Field, field_validator
@@ -20,7 +20,7 @@ class AudioConfig(BaseModel):
     
     @field_validator("audio_file_path")
     @classmethod
-    def validate_file_path(cls, v: Optional[str], info) -> Optional[str]:
+    def validate_file_path(_cls, v: Optional[str], info) -> Optional[str]:
         """Validate that audio_file_path is provided when audio_source_type is 'audio_file'."""
         if info.data.get("audio_source_type") == "audio_file" and not v:
             raise ValueError("audio_file_path is required when audio_source_type is 'audio_file'")

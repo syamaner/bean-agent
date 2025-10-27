@@ -1,7 +1,7 @@
 """
 Evaluation metrics for binary first crack detection.
 """
-from typing import Dict, Tuple
+from typing import Dict
 import numpy as np
 import torch
 from sklearn.metrics import (

@@ -240,7 +240,7 @@ class FirstCrackDetector:
     def _microphone_loop(self) -> None:
         """Stream audio from microphone and process in real-time."""
         try:
-            def audio_callback(indata, frames, time_info, status):
+            def audio_callback(indata, _frames, _time_info, status):
                 """Callback for audio stream."""
                 if status:
                     print(f"Audio stream status: {status}")

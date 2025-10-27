@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict
 
 import torch
 import torch.nn as nn
@@ -20,7 +20,7 @@ from tqdm import tqdm
 # Add parent directories to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from data_prep.audio_dataset import FirstCrackDataset, create_dataloaders
+from data_prep.audio_dataset import create_dataloaders
 from models.ast_model import FirstCrackClassifier, ModelInitConfig
 from models.config import TRAINING_CONFIG
 from utils.metrics import MetricsCalculator, calculate_batch_accuracy

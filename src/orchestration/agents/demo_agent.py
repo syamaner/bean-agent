@@ -14,8 +14,7 @@ import os
 import asyncio
 import requests
 from openai import OpenAI
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from mcp import ClientSession
 from mcp.client.sse import sse_client
 
 # Auth0 Configuration (from environment variables)

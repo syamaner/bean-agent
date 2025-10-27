@@ -49,7 +49,6 @@
 
 **Source Code** (Component Documentation):
 - ✅ `src/inference/README.md` - Inference API guide
-- ✅ `src/mcp_servers/HTTP_SERVERS.md` - MCP server HTTP/SSE documentation
 - ✅ `src/mcp_servers/roaster_control/` - Roaster control server docs (3 files)
 - ✅ `Phase3/` - Current phase documentation (4 files)
 
