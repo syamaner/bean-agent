@@ -1,0 +1,502 @@
+{
+  "name": "Autonomous Coffee Roast - Working",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "17d76de7-bfa2-41ba-9eed-ef9636bd1570",
+      "name": "Start Roast",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1984,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://genai-7175210165555426.uk.auth0.com/oauth/token",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": ""
+            },
+            {
+              "name": "client_secret",
+              "value": ""
+            },
+            {
+              "name": "audience",
+              "value": "https://coffee-roasting-api"
+            },
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "430b6cee-3b98-472a-97ae-5efb23978790",
+      "name": "Get Auth0 Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -1760,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "token-var",
+              "name": "auth_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "loop-counter",
+              "name": "iteration",
+              "value": "0",
+              "type": "number"
+            },
+            {
+              "id": "roast-phase",
+              "name": "phase",
+              "value": "starting",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "95a2eb47-0817-4d2a-8ee0-dbcd36f0ab3e",
+      "name": "Initialize State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -1536,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "condition-2",
+              "leftValue": "={{ $json.phase }}",
+              "rightValue": "complete",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "93075466-7baa-4c0d-bdef-c91f4b5223f3",
+              "leftValue": "={{ $json.iteration }}",
+              "rightValue": 180,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4054b086-6635-41a2-8b1a-c452f81853f2",
+      "name": "Continue Loop?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -1312,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "b49b3f96-cdeb-4027-a98b-777f871963a7",
+      "name": "Wait 10s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1088,
+        320
+      ],
+      "webhookId": "autonomous-roast-wait"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "increment",
+              "name": "iteration",
+              "value": "={{ $json.iteration + 1 }}",
+              "type": "number"
+            },
+            {
+              "id": "elapsed",
+              "name": "elapsed_seconds",
+              "value": "={{ $json.iteration * 10 }}",
+              "type": "number"
+            },
+            {
+              "id": "elapsed-min",
+              "name": "elapsed_minutes",
+              "value": "={{ Math.floor(($json.iteration * 10) / 60) }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "63dd23d6-e053-4b62-bfcb-6e7a89b2424b",
+      "name": "Update State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -864,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current iteration: {{ $json.iteration }}\n\nStatus from roaster:\n{{ $json.roaster_status }}\n\nFirst crack status:\n{{ $json.fc_status }}\n\nTake action now based on the current phase and status.",
+        "options": {
+          "systemMessage": "System Prompt for AI Agent Node\nYou are an expert coffee roasting assistant controlling a Hottop KN-8828B-2K+ drum roaster in real-time.\n\nIMPORTANT: You MUST actively call tools every iteration. Do not just describe what to do - execute commands.\n\nROAST PHASES:\n- Preheat: 3-5 minutes to reach ~180-200°C (heat 100%, fan 0%)\n- Charge: User adds beans at ~180°C, temp drops to ~80°C\n- Development: After first crack, reduce heat and increase fan\n- Drop: When development time is 15-20% and temp is 192-195°C\n\nAVAILABLE TOOLS (CALL THESE):\n- get_roast_status: Get current temps, heat, fan, timing\n- start_roaster: Start drum motor\n- set_heat: Set heat 0-100% (in 10% increments)\n- set_fan: Set fan 0-100% (in 10% increments)\n- start_first_crack_detection: Start FC monitoring\n- get_first_crack_status: Check if FC detected\n- drop_beans: Finish roast and cool\n- report_first_crack: Log FC time/temp\n\nWORKFLOW EACH ITERATION:\n1. Call get_roast_status FIRST\n2. Analyze current state\n3. Call appropriate tool based on phase\n4. If not running: call start_roaster\n5. Around 8-10 min: call start_first_crack_detection\n6. After FC: reduce heat, increase fan\n7. When dev time 15-20% and temp 192-195°C: call drop_beans\n\nCurrent iteration: {{ $json.iteration }}\nCurrent phase: {{ $json.phase }}\n\nCRITICAL: Call at least ONE tool per iteration. Take action, don't just observe.\nPre-First Crack Phase (Simple - No AI Adjustments Needed)\nFor the initial phase before first crack, you can keep it simple with fixed settings:\n\nPREHEAT PHASE - NO AI CONTROL NEEDED\n\nInitial settings (fixed):\n- Heat: 100% (full power)\n- Fan: 0% (no cooling)\n\nProcess:\n1. Start roaster (call start_roaster)\n2. Set heat to 100% (call set_heat with percent=100)\n3. Set fan to 0% (call set_fan with percent=0)\n4. Start first crack detection (call start_first_crack_detection with audio_source_type=\"usb_microphone\")\n5. Wait for first crack detection\n\nYour job: Just monitor until first crack is detected.\nCall get_roast_status each iteration to check temps.\nCall get_first_crack_status to check if FC detected.\nPost-First Crack Phase (AI Decision Making)\nOnce first crack is detected, use this prompt for active control:\n\nPOST-FIRST CRACK CONTROL - YOU ARE IN COMMAND\n\nCurrent status:\n- Temperature: {{ $json.bean_temp }}°C\n- Heat: {{ $json.heat }}%\n- Fan: {{ $json.fan }}%\n- Time since FC: {{ $json.fc_elapsed }} minutes\n- Development time: {{ $json.dev_time_pct }}%\n\nGOAL: Stretch development to 15-20% while reaching 192-195°C\n\nRULES:\n- Heat/fan must be 0-100 in 10% increments\n- Current values: heat={{ $json.heat }}%, fan={{ $json.fan }}%\n- To slow temp rise: LOWER heat (e.g., from 80% to 60%)\n- To cool more: INCREASE fan (e.g., from 20% to 40%)\n- NEVER use negative values or >100\n\nDROP CRITERIA (both must be met):\n- Development time: 15-20% of total roast\n- Bean temperature: 192-195°C\n- EMERGENCY: Drop immediately if temp >205°C\n\nYOUR DECISION OPTIONS:\n1. Continue with current settings (do nothing this iteration)\n2. Adjust heat/fan (call set_heat and/or set_fan)\n3. Drop beans (call drop_beans)\n"
+        }
+      },
+      "id": "31c817ef-6b72-417f-8b8d-6b263e3ef752",
+      "name": "AI Roast Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -640,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "maxTokens": 1500,
+          "temperature": 0.3
+        }
+      },
+      "id": "d266650c-c0ff-4197-8bf2-989a71f2d2d4",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        -640,
+        96
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "cYF7gLJqU38azf6C",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://host.docker.internal:5002/sse",
+        "serverTransport": "sse",
+        "authentication": "bearerAuth",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        -576,
+        720
+      ],
+      "id": "398ef77c-d6fb-419b-bde8-78363d3e7d07",
+      "name": "Roaster Control MCP",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "yQFT5yL0T4LlCk8s",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://host.docker.internal:5001/sse/",
+        "serverTransport": "sse",
+        "authentication": "bearerAuth",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        -416,
+        704
+      ],
+      "id": "2bd874ff-e5fe-4c30-b442-52934983e1e8",
+      "name": "First Crack Detection MCP",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "yQFT5yL0T4LlCk8s",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "preserve-token",
+              "name": "auth_token",
+              "value": "={{ $('Initialize State').item.json.auth_token }}",
+              "type": "string"
+            },
+            {
+              "id": "preserve-iteration",
+              "name": "iteration",
+              "value": "={{ $json.iteration }}",
+              "type": "number"
+            },
+            {
+              "id": "update-phase",
+              "name": "phase",
+              "value": "={{ $json.output.includes('complete') || $json.output.includes('dropped') ? 'complete' : $json.phase || 'active' }}",
+              "type": "string"
+            },
+            {
+              "id": "agent-response",
+              "name": "response",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6412d938-4781-4e78-a514-0a84d34949d2",
+      "name": "Preserve Loop State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -400,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "=## ✅ Roast Complete!\n\nIterations: {{ $json.iteration }}\nTime: {{ Math.floor(($json.iteration * 10) / 60) }}:{{ String(($json.iteration * 10) % 60).padStart(2, '0') }}\n\n{{ $json.response }}",
+        "height": 300,
+        "width": 500
+      },
+      "id": "a3fd6673-d472-453a-a7a0-86098599cb27",
+      "name": "Roast Complete",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2016,
+        112
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -880,
+        816
+      ],
+      "id": "ee21d965-0209-464e-838a-0b570cba015e",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Stop The Roaster\n◦  stop_roaster\n◦  stop_first_crack_detection\n◦  set_heat to 0\n◦  set_fan to 0\n◦  stop the roaster (stop_roaster)",
+        "options": {
+          "systemMessage": "System Prompt for AI Agent Node\nYou are an expert coffee roasting assistant controlling a Hottop KN-8828B-2K+ drum roaster in real-time.\n\nIMPORTANT: You MUST actively call tools every iteration. Do not just describe what to do - execute commands.\n\nROAST PHASES:\n- Preheat: 3-5 minutes to reach ~180-200°C (heat 100%, fan 0%)\n- Charge: User adds beans at ~180°C, temp drops to ~80°C\n- Development: After first crack, reduce heat and increase fan\n- Drop: When development time is 15-20% and temp is 192-195°C\n\nAVAILABLE TOOLS (CALL THESE):\n- get_roast_status: Get current temps, heat, fan, timing\n- start_roaster: Start drum motor\n- set_heat: Set heat 0-100% (in 10% increments)\n- set_fan: Set fan 0-100% (in 10% increments)\n- start_first_crack_detection: Start FC monitoring\n- get_first_crack_status: Check if FC detected\n- drop_beans: Finish roast and cool\n- report_first_crack: Log FC time/temp\n\nWORKFLOW EACH ITERATION:\n1. Call get_roast_status FIRST\n2. Analyze current state\n3. Call appropriate tool based on phase\n4. If not running: call start_roaster\n5. Around 8-10 min: call start_first_crack_detection\n6. After FC: reduce heat, increase fan\n7. When dev time 15-20% and temp 192-195°C: call drop_beans\n\nCurrent iteration: {{ $json.iteration }}\nCurrent phase: {{ $json.phase }}\n\nCRITICAL: Call at least ONE tool per iteration. Take action, don't just observe.\nPre-First Crack Phase (Simple - No AI Adjustments Needed)\nFor the initial phase before first crack, you can keep it simple with fixed settings:\n\nPREHEAT PHASE - NO AI CONTROL NEEDED\n\nInitial settings (fixed):\n- Heat: 100% (full power)\n- Fan: 0% (no cooling)\n\nProcess:\n1. Start roaster (call start_roaster)\n2. Set heat to 100% (call set_heat with percent=100)\n3. Set fan to 0% (call set_fan with percent=0)\n4. Start first crack detection (call start_first_crack_detection with audio_source_type=\"usb_microphone\")\n5. Wait for first crack detection\n\nYour job: Just monitor until first crack is detected.\nCall get_roast_status each iteration to check temps.\nCall get_first_crack_status to check if FC detected.\nPost-First Crack Phase (AI Decision Making)\nOnce first crack is detected, use this prompt for active control:\n\nPOST-FIRST CRACK CONTROL - YOU ARE IN COMMAND\n\nCurrent status:\n- Temperature: {{ $json.bean_temp }}°C\n- Heat: {{ $json.heat }}%\n- Fan: {{ $json.fan }}%\n- Time since FC: {{ $json.fc_elapsed }} minutes\n- Development time: {{ $json.dev_time_pct }}%\n\nGOAL: Stretch development to 15-20% while reaching 192-195°C\n\nRULES:\n- Heat/fan must be 0-100 in 10% increments\n- Current values: heat={{ $json.heat }}%, fan={{ $json.fan }}%\n- To slow temp rise: LOWER heat (e.g., from 80% to 60%)\n- To cool more: INCREASE fan (e.g., from 20% to 40%)\n- NEVER use negative values or >100\n\nDROP CRITERIA (both must be met):\n- Development time: 15-20% of total roast\n- Bean temperature: 192-195°C\n- EMERGENCY: Drop immediately if temp >205°C\n\nYOUR DECISION OPTIONS:\n1. Continue with current settings (do nothing this iteration)\n2. Adjust heat/fan (call set_heat and/or set_fan)\n3. Drop beans (call drop_beans)\n"
+        }
+      },
+      "id": "c2e79f39-ca0f-4dd7-b9b0-b1a45b98e3b1",
+      "name": "Stop the machine",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -960,
+        608
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Roast": {
+      "main": [
+        [
+          {
+            "node": "Get Auth0 Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Auth0 Token": {
+      "main": [
+        [
+          {
+            "node": "Initialize State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize State": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop?": {
+      "main": [
+        [
+          {
+            "node": "Wait 10s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 10s": {
+      "main": [
+        [
+          {
+            "node": "Update State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update State": {
+      "main": [
+        [
+          {
+            "node": "AI Roast Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Roast Agent": {
+      "main": [
+        [
+          {
+            "node": "Preserve Loop State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve Loop State": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Roast Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Stop the machine",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roaster Control MCP": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Roast Agent",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Stop the machine",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Crack Detection MCP": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Roast Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Stop the machine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d8cfe050-bd0a-45c0-a48a-ba0605ee86d6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "8636f757383b5758be656e3b93b72c6b703a87cb8cd04449ae29522d1cdcdfe3"
+  },
+  "id": "XWp0MIyPd36b4pl7",
+  "tags": []
+}
