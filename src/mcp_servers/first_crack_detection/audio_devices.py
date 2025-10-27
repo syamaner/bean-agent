@@ -37,18 +37,26 @@ def find_usb_microphone() -> Optional[int]:
     """
     Find first USB audio input device.
     
-    Uses heuristic: device name contains "USB" (case-insensitive)
-    and is not the default device (usually built-in).
+    Uses heuristic: device name contains "USB" or "PnP" (case-insensitive).
+    Prioritizes explicit USB devices even if they are the default.
     
     Returns:
         Device index if found, None otherwise
     """
     devices = list_audio_devices()
     
+    # First pass: Look for explicit USB or PnP devices (e.g., "USB PnP Audio Device")
     for dev in devices:
         name_lower = dev["name"].lower()
-        # USB device that's not the default (skip built-in that might have USB in name)
-        if "usb" in name_lower and not dev["default"]:
+        # Check for USB PnP devices or generic USB audio devices
+        if ("usb" in name_lower and "pnp" in name_lower) or \
+           ("usb" in name_lower and "audio" in name_lower and "macbook" not in name_lower):
+            return dev["index"]
+    
+    # Second pass: Any device with "usb" that's not built-in
+    for dev in devices:
+        name_lower = dev["name"].lower()
+        if "usb" in name_lower and "macbook" not in name_lower:
             return dev["index"]
     
     return None
