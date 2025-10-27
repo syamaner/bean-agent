@@ -30,7 +30,9 @@ var roasterControl = builder.AddPythonApp(
     .WithHttpEndpoint(port: 5002, env: "ROASTER_CONTROL_PORT")
     .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
     .WithEnvironment("AUTH0_AUDIENCE", auth0Audience)
-    .WithEnvironment("USE_MOCK_HARDWARE", useMockHardware);
+    .WithEnvironment("USE_MOCK_HARDWARE", useMockHardware)
+    .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
+    .WithOtlpExporter();
 
 var firstCrackDetection = builder.AddPythonApp(
         "first-crack-detection",
@@ -40,7 +42,9 @@ var firstCrackDetection = builder.AddPythonApp(
     .WithArgs("src.mcp_servers.first_crack_detection.sse_server")
     .WithHttpEndpoint(port: 5001, env: "FIRST_CRACK_DETECTION_PORT")
     .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
-    .WithEnvironment("AUTH0_AUDIENCE", auth0Audience);
+    .WithEnvironment("AUTH0_AUDIENCE", auth0Audience)
+    .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
+    .WithOtlpExporter();
 
 #pragma warning restore ASPIREHOSTINGPYTHON001
 

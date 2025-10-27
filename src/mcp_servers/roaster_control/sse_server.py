@@ -49,12 +49,16 @@ from src.mcp_servers.shared.auth0_middleware import (
     log_client_action
 )
 
+# Import shared OpenTelemetry configuration
+from src.mcp_servers.shared.otel_config import configure_opentelemetry, instrument_fastapi
+
 
 # Global state
 mcp_server = Server("roaster-control")
 session_manager: RoastSessionManager = None
 config: ServerConfig = None
 logger = logging.getLogger(__name__)
+roaster_metrics = None  # RoasterMetrics instance
 
 
 # Auth0 Middleware for MCP
@@ -284,65 +288,77 @@ def setup_mcp_server():
     @mcp_server.call_tool()
     async def call_tool(name: str, arguments: dict, request_context=None) -> list[TextContent]:
         """Handle tool calls with scope-based access control."""
+        from src.mcp_servers.shared.otel_config import get_tracer
+        tracer = get_tracer("roaster-control.mcp")
+        
         # Define which tools require write access
         write_tools = {
             "start_roaster", "stop_roaster", "set_heat", "set_fan",
             "drop_beans", "start_cooling", "stop_cooling", "report_first_crack"
         }
         
-        try:
-            # Note: In SSE transport, we don't have direct access to request context
-            # Scope enforcement happens at middleware level
-            # This is a secondary check - tools are documented with required scopes
-            
-            # Call session_manager methods directly
-            if name == "read_roaster_status":
-                status = session_manager.get_status()
-                result = {"status": "success", "data": status.model_dump()}
-            elif name == "start_roaster":
-                session_manager.start_roaster()
-                result = {"status": "success", "message": "Roaster started"}
-            elif name == "stop_roaster":
-                session_manager.stop_roaster()
-                result = {"status": "success", "message": "Roaster stopped"}
-            elif name == "set_heat":
-                session_manager.set_heat(arguments["level"])
-                result = {"status": "success", "message": f"Heat set to {arguments['level']}%"}
-            elif name == "set_fan":
-                session_manager.set_fan(arguments["speed"])
-                result = {"status": "success", "message": f"Fan set to {arguments['speed']}%"}
-            elif name == "drop_beans":
-                session_manager.drop_beans()
-                result = {"status": "success", "message": "Beans dropped"}
-            elif name == "start_cooling":
-                session_manager.start_cooling()
-                result = {"status": "success", "message": "Cooling started"}
-            elif name == "stop_cooling":
-                session_manager.stop_cooling()
-                result = {"status": "success", "message": "Cooling stopped"}
-            elif name == "report_first_crack":
-                from datetime import datetime
-                timestamp = datetime.fromisoformat(arguments["timestamp"])
-                temperature = arguments.get("temperature")
-                session_manager.report_first_crack(timestamp, temperature)
-                result = {"status": "success", "message": "First crack reported"}
-            else:
-                result = {"error": f"Unknown tool: {name}"}
-            
-            # Log successful actions
-            if result.get("status") == "success":
-                logger.info(f"Tool executed: {name} with args: {arguments}")
-            
-            return [TextContent(
-                type="text",
-                text=json.dumps(result, indent=2, default=str)
-            )]
-        except Exception as e:
-            logger.error(f"Tool error: {e}", exc_info=True)
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e), "type": type(e).__name__}, indent=2)
-            )]
+        # Create a span for each MCP tool call
+        with tracer.start_as_current_span(
+            f"mcp.tool.{name}",
+            attributes={
+                "mcp.tool.name": name,
+                "mcp.tool.arguments": str(arguments),
+                "mcp.tool.requires_write": name in write_tools
+            }
+        ):
+            try:
+                # Note: In SSE transport, we don't have direct access to request context
+                # Scope enforcement happens at middleware level
+                # This is a secondary check - tools are documented with required scopes
+                
+                # Call session_manager methods directly
+                if name == "read_roaster_status":
+                    status = session_manager.get_status()
+                    result = {"status": "success", "data": status.model_dump()}
+                elif name == "start_roaster":
+                    session_manager.start_roaster()
+                    result = {"status": "success", "message": "Roaster started"}
+                elif name == "stop_roaster":
+                    session_manager.stop_roaster()
+                    result = {"status": "success", "message": "Roaster stopped"}
+                elif name == "set_heat":
+                    session_manager.set_heat(arguments["level"])
+                    result = {"status": "success", "message": f"Heat set to {arguments['level']}%"}
+                elif name == "set_fan":
+                    session_manager.set_fan(arguments["speed"])
+                    result = {"status": "success", "message": f"Fan set to {arguments['speed']}%"}
+                elif name == "drop_beans":
+                    session_manager.drop_beans()
+                    result = {"status": "success", "message": "Beans dropped"}
+                elif name == "start_cooling":
+                    session_manager.start_cooling()
+                    result = {"status": "success", "message": "Cooling started"}
+                elif name == "stop_cooling":
+                    session_manager.stop_cooling()
+                    result = {"status": "success", "message": "Cooling stopped"}
+                elif name == "report_first_crack":
+                    from datetime import datetime
+                    timestamp = datetime.fromisoformat(arguments["timestamp"])
+                    temperature = arguments.get("temperature")
+                    session_manager.report_first_crack(timestamp, temperature)
+                    result = {"status": "success", "message": "First crack reported"}
+                else:
+                    result = {"error": f"Unknown tool: {name}"}
+                
+                # Log successful actions
+                if result.get("status") == "success":
+                    logger.info(f"Tool executed: {name} with args: {arguments}")
+                
+                return [TextContent(
+                    type="text",
+                    text=json.dumps(result, indent=2, default=str)
+                )]
+            except Exception as e:
+                logger.error(f"Tool error: {e}", exc_info=True)
+                return [TextContent(
+                    type="text",
+                    text=json.dumps({"error": str(e), "type": type(e).__name__}, indent=2)
+                )]
 
 
 # Routes
@@ -391,10 +407,17 @@ async def health(request: Request):
 @asynccontextmanager
 async def lifespan(app):
     """Initialize on startup, cleanup on shutdown."""
-    global session_manager, config
+    global session_manager, config, roaster_metrics
     
     # Startup
     config = ServerConfig()
+    
+    # Configure OpenTelemetry (reads env vars set by Aspire)
+    configure_opentelemetry(service_name="roaster-control")
+    
+    # Initialize domain metrics
+    from .metrics import RoasterMetrics
+    roaster_metrics = RoasterMetrics()
     
     # Simple mock flag for testing without hardware
     use_mock = os.getenv("USE_MOCK_HARDWARE", "false").lower() == "true"
@@ -408,7 +431,7 @@ async def lifespan(app):
         from .hardware import HottopRoaster
         hardware = HottopRoaster(port=config.hardware.port)
     
-    session_manager = RoastSessionManager(hardware, config)
+    session_manager = RoastSessionManager(hardware, config, metrics=roaster_metrics)
     session_manager.start_session()  # Start session and polling
     setup_mcp_server()
     
@@ -522,6 +545,9 @@ app = Starlette(
     # NO MIDDLEWARE - Auth handled in route handlers to avoid SSE issues
     lifespan=lifespan
 )
+
+# Instrument with OpenTelemetry for HTTP tracing
+instrument_fastapi(app)
 
 
 if __name__ == "__main__":

@@ -49,11 +49,20 @@ from src.mcp_servers.shared.auth0_middleware import (
     log_client_action
 )
 
+# Import shared OpenTelemetry configuration
+from src.mcp_servers.shared.otel_config import (
+    configure_opentelemetry,
+    instrument_fastapi,
+    MCPMetrics
+)
+
 # Global state
 mcp_server = Server("first-crack-detection")
 session_manager: DetectionSessionManager = None
 config = None
 logger = logging.getLogger(__name__)
+mcp_metrics: MCPMetrics = None
+fc_metrics = None  # FirstCrackMetrics instance
 
 
 # Auth0 Middleware
@@ -204,26 +213,54 @@ def setup_mcp_server():
     
     @mcp_server.call_tool()
     async def call_tool(name: str, arguments: dict) -> list[TextContent]:
-        try:
-            if name == "start_first_crack_detection":
-                result = await handle_start_detection(arguments)
-            elif name == "get_first_crack_status":
-                result = await handle_get_status(arguments)
-            elif name == "stop_first_crack_detection":
-                result = await handle_stop_detection(arguments)
-            else:
-                result = {"error": f"Unknown tool: {name}"}
-            
-            return [TextContent(
-                type="text",
-                text=json.dumps(result, indent=2, default=str)
-            )]
-        except Exception as e:
-            logger.error(f"Tool error: {e}", exc_info=True)
-            return [TextContent(
-                type="text",
-                text=json.dumps({"error": str(e), "type": type(e).__name__}, indent=2)
-            )]
+        import time
+        from src.mcp_servers.shared.otel_config import get_tracer
+        tracer = get_tracer("first-crack-detection.mcp")
+        
+        start_time = time.perf_counter()
+        success = True
+        
+        # Create a span for each MCP tool call
+        with tracer.start_as_current_span(
+            f"mcp.tool.{name}",
+            attributes={
+                "mcp.tool.name": name,
+                "mcp.tool.arguments": str(arguments)
+            }
+        ):
+            try:
+                if name == "start_first_crack_detection":
+                    result = await handle_start_detection(arguments)
+                elif name == "get_first_crack_status":
+                    result = await handle_get_status(arguments)
+                elif name == "stop_first_crack_detection":
+                    result = await handle_stop_detection(arguments)
+                else:
+                    result = {"error": f"Unknown tool: {name}"}
+                    success = False
+                
+                # Record metrics
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                if mcp_metrics:
+                    mcp_metrics.record_tool_call(name, duration_ms, success)
+                
+                return [TextContent(
+                    type="text",
+                    text=json.dumps(result, indent=2, default=str)
+                )]
+            except Exception as e:
+                logger.error(f"Tool error: {e}", exc_info=True)
+                success = False
+                
+                # Record error metrics
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                if mcp_metrics:
+                    mcp_metrics.record_tool_call(name, duration_ms, success, error_type=type(e).__name__)
+                
+                return [TextContent(
+                    type="text",
+                    text=json.dumps({"error": str(e), "type": type(e).__name__}, indent=2)
+                )]
 
 
 # Routes
@@ -293,12 +330,21 @@ async def health(request: Request):
 @asynccontextmanager
 async def lifespan(app):
     """Initialize on startup, cleanup on shutdown."""
-    global session_manager, config
+    global session_manager, config, mcp_metrics, fc_metrics
     
     # Startup - load real model and config
     config = load_config()
     setup_logging(config)
-    session_manager = DetectionSessionManager(config)
+    
+    # Configure OpenTelemetry (reads env vars set by Aspire)
+    configure_opentelemetry(service_name="first-crack-detection")
+    mcp_metrics = MCPMetrics(service_name="first-crack-detection")
+    
+    # Initialize domain metrics
+    from .metrics import FirstCrackMetrics
+    fc_metrics = FirstCrackMetrics()
+    
+    session_manager = DetectionSessionManager(config, metrics=fc_metrics)
     logger.info(f"Model: {config.model_checkpoint}")
     
     setup_mcp_server()
@@ -402,6 +448,9 @@ app = Starlette(
     # NO MIDDLEWARE - Auth handled in route handlers to avoid SSE issues
     lifespan=lifespan
 )
+
+# Instrument with OpenTelemetry for HTTP tracing
+instrument_fastapi(app)
 
 
 if __name__ == "__main__":

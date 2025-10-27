@@ -13,7 +13,19 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
+
+# Optional instrumentations (may not be installed)
+try:
+    from opentelemetry.instrumentation.flask import FlaskInstrumentor
+    FLASK_AVAILABLE = True
+except ImportError:
+    FLASK_AVAILABLE = False
+
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    FASTAPI_AVAILABLE = True
+except ImportError:
+    FASTAPI_AVAILABLE = False
 
 
 def setup_tracing(
@@ -64,11 +76,19 @@ def setup_tracing(
         except Exception as e:
             print(f"Warning: Could not instrument requests: {e}")
         
-        try:
-            FlaskInstrumentor().instrument()
-            print(f"Auto-instrumented: Flask")
-        except Exception as e:
-            print(f"Warning: Could not instrument Flask: {e}")
+        if FLASK_AVAILABLE:
+            try:
+                FlaskInstrumentor().instrument()
+                print(f"Auto-instrumented: Flask")
+            except Exception as e:
+                print(f"Warning: Could not instrument Flask: {e}")
+        
+        if FASTAPI_AVAILABLE:
+            try:
+                FastAPIInstrumentor().instrument()
+                print(f"Auto-instrumented: FastAPI")
+            except Exception as e:
+                print(f"Warning: Could not instrument FastAPI: {e}")
     
     print(f"OpenTelemetry tracing configured for {service_name} → {otlp_endpoint}")
     

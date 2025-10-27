@@ -48,9 +48,8 @@ class RoastTracker:
         self._last_timestamp: Optional[datetime] = None
         
         # Temperature buffer for RoR (stores (timestamp, temp) tuples)
-        self._temp_buffer: Deque[Tuple[datetime, float]] = deque(
-            maxlen=config.ror_window_size
-        )
+        # Note: maxlen is unbounded; we prune old readings based on time window
+        self._temp_buffer: Deque[Tuple[datetime, float]] = deque()
         
         # Captured values
         self._beans_added_temp: Optional[float] = None
@@ -79,6 +78,11 @@ class RoastTracker:
         # Add to temperature buffer
         self._temp_buffer.append((reading.timestamp, reading.bean_temp_c))
         self._last_timestamp = reading.timestamp
+        
+        # Prune old readings outside the RoR window (time-based, not count-based)
+        cutoff_time = reading.timestamp.timestamp() - self._config.ror_window_size
+        while self._temp_buffer and self._temp_buffer[0][0].timestamp() < cutoff_time:
+            self._temp_buffer.popleft()
         
         # Check for stall (negative RoR after T0 for extended period)
         if self._t0 is not None and len(self._temp_buffer) >= 30:
