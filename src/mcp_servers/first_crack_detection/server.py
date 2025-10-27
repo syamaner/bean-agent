@@ -10,6 +10,7 @@ Transport: stdio (JSON-RPC over stdin/stdout)
 import asyncio
 import logging
 import os
+import sys
 from pathlib import Path
 
 from mcp.server import Server
@@ -31,11 +32,35 @@ from .models import (
 )
 from .utils import setup_logging
 
+# Add parent directories to path for observability
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+# Import observability
+try:
+    from observability import (
+        setup_logging as setup_otel_logging,
+        setup_tracing,
+        FirstCrackMetrics,
+        get_logger as get_otel_logger,
+        trace_span,
+        get_tracer
+    )
+    OBSERVABILITY_ENABLED = True
+except ImportError:
+    print("Warning: Observability package not available", file=sys.stderr)
+    OBSERVABILITY_ENABLED = False
+
 # Global state
 server = Server("first-crack-detection")
 session_manager: DetectionSessionManager = None
 config = None
 logger = logging.getLogger(__name__)
+
+# Observability instances
+if OBSERVABILITY_ENABLED:
+    otel_logger = None
+    tracer = None
+    metrics = None
 
 
 def register_tools():
@@ -180,6 +205,12 @@ def register_tools():
 
 async def handle_start_detection(arguments: dict) -> dict:
     """Handle start_first_crack_detection tool call."""
+    if OBSERVABILITY_ENABLED and otel_logger:
+        otel_logger.info(
+            "Starting first crack detection",
+            extra={"audio_source_type": arguments.get("audio_source_type")}
+        )
+    
     try:
         # Parse audio config
         audio_config = AudioConfig(
@@ -191,8 +222,12 @@ async def handle_start_detection(arguments: dict) -> dict:
         detection_config_data = arguments.get("detection_config", {})
         detection_config = DetectionConfig(**detection_config_data)
         
-        # Start session
-        result = session_manager.start_session(audio_config)
+        # Start session (with tracing if available)
+        if OBSERVABILITY_ENABLED and tracer:
+            with trace_span(tracer, "start_detection_session", {"audio_source": audio_config.audio_source_type}):
+                result = session_manager.start_session(audio_config)
+        else:
+            result = session_manager.start_session(audio_config)
         
         return {
             "status": "success",
@@ -223,7 +258,22 @@ async def handle_start_detection(arguments: dict) -> dict:
 async def handle_get_status(arguments: dict) -> dict:
     """Handle get_first_crack_status tool call."""
     try:
-        status = session_manager.get_status()
+        # Get status (with tracing if available)
+        if OBSERVABILITY_ENABLED and tracer:
+            with trace_span(tracer, "get_detection_status"):
+                status = session_manager.get_status()
+        else:
+            status = session_manager.get_status()
+        
+        # Log first crack if detected
+        if OBSERVABILITY_ENABLED and otel_logger and status.first_crack_detected:
+            otel_logger.info(
+                "First crack detected",
+                extra={
+                    "timestamp": str(status.first_crack_time_utc),
+                    "relative_time": status.first_crack_time_relative
+                }
+            )
         
         return {
             "status": "success",
@@ -252,8 +302,26 @@ async def handle_get_status(arguments: dict) -> dict:
 
 async def handle_stop_detection(arguments: dict) -> dict:
     """Handle stop_first_crack_detection tool call."""
+    if OBSERVABILITY_ENABLED and otel_logger:
+        otel_logger.info("Stopping first crack detection")
+    
     try:
-        summary = session_manager.stop_session()
+        # Stop session (with tracing if available)
+        if OBSERVABILITY_ENABLED and tracer:
+            with trace_span(tracer, "stop_detection_session"):
+                summary = session_manager.stop_session()
+        else:
+            summary = session_manager.stop_session()
+        
+        # Record session metrics
+        if OBSERVABILITY_ENABLED and metrics and summary.session_summary:
+            session_data = summary.session_summary
+            if "duration" in session_data:
+                # Parse duration (format: MM:SS)
+                parts = session_data["duration"].split(":")
+                duration_secs = int(parts[0]) * 60 + int(parts[1])
+                detected = session_data.get("first_crack_detected", False)
+                metrics.record_session_end(duration_secs, detected)
         
         return {
             "status": "success",
@@ -275,13 +343,29 @@ async def main():
     """
     Run the MCP server with stdio transport.
     """
-    global session_manager, config
+    global session_manager, config, otel_logger, tracer, metrics
+    
+    # Initialize observability
+    if OBSERVABILITY_ENABLED:
+        try:
+            setup_otel_logging("first-crack-mcp")
+            tracer = setup_tracing("first-crack-mcp")
+            metrics = FirstCrackMetrics("first-crack-mcp")
+            otel_logger = get_otel_logger(__name__)
+            otel_logger.info("Observability initialized")
+        except Exception as e:
+            print(f"Failed to initialize observability: {e}", file=sys.stderr)
     
     # Load configuration
     try:
         config = load_config()
         setup_logging(config)
         logger.info(f"Loaded configuration: {config.model_checkpoint}")
+        if OBSERVABILITY_ENABLED and otel_logger:
+            otel_logger.info(
+                "Configuration loaded",
+                extra={"model_checkpoint": config.model_checkpoint}
+            )
     except Exception as e:
         logger.error(f"Failed to load configuration: {e}")
         raise
@@ -290,6 +374,8 @@ async def main():
     try:
         session_manager = DetectionSessionManager(config)
         logger.info("DetectionSessionManager initialized")
+        if OBSERVABILITY_ENABLED and otel_logger:
+            otel_logger.info("Session manager initialized")
     except Exception as e:
         logger.error(f"Failed to initialize session manager: {e}")
         raise
@@ -297,6 +383,8 @@ async def main():
     # Register tools
     register_tools()
     logger.info("MCP Server initialized with tools, waiting for connections...")
+    if OBSERVABILITY_ENABLED and otel_logger:
+        otel_logger.info("MCP server ready", extra={"service": "first-crack-mcp"})
     
     # Run server with stdio transport
     async with stdio_server() as (read_stream, write_stream):
