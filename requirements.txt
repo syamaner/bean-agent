@@ -37,3 +37,11 @@ python-jose[cryptography]>=3.3.0
 python-dotenv>=1.0.0
 requests>=2.31.0
 sse-starlette>=1.6.5
+
+# Observability: OpenTelemetry
+opentelemetry-api>=1.21.0
+opentelemetry-sdk>=1.21.0
+opentelemetry-exporter-otlp-proto-grpc>=1.21.0
+opentelemetry-instrumentation-requests>=0.42b0
+opentelemetry-instrumentation-flask>=0.42b0
+opentelemetry-instrumentation-fastapi>=0.42b0
