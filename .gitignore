@@ -94,3 +94,5 @@ src/orchestration/aspire/bin/**/*
 src/orchestration/aspire/obj/**/*
 .history-backup/database.sqlite.1761518222
 sanitize_auth0_secret.sh
+/.flowise/**/*
+/.langflow/**/*

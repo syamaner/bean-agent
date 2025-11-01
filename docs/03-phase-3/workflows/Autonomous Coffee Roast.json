@@ -386,6 +386,13 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Stop the machine",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
@@ -492,7 +499,7 @@
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "d8cfe050-bd0a-45c0-a48a-ba0605ee86d6",
+  "versionId": "506a4746-7c5a-4204-93f3-997b1fbaa6d4",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "8636f757383b5758be656e3b93b72c6b703a87cb8cd04449ae29522d1cdcdfe3"

@@ -14,7 +14,7 @@ from pathlib import Path
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent, Resource, ReadResourceResult
+from mcp.types import Tool, TextContent, Resource, ReadResourceResult, TextResourceContents
 
 from .config import load_config
 from .session_manager import DetectionSessionManager
@@ -77,7 +77,9 @@ async def list_resources_impl() -> list:
 @server.read_resource()
 async def read_resource_impl(uri: str) -> ReadResourceResult:
     """Read resource content."""
-    if uri == "health://status":
+    # Convert URI to string for comparison (it may be a Pydantic AnyUrl object)
+    uri_str = str(uri)
+    if uri_str == "health://status":
         import json
         import torch
         
@@ -95,13 +97,14 @@ async def read_resource_impl(uri: str) -> ReadResourceResult:
             health_data["session_started_at"] = str(session_manager.current_session.started_at)
         
         return ReadResourceResult(
-            contents=[TextContent(
-                type="text",
+            contents=[TextResourceContents(
+                uri=uri_str,
+                mimeType="application/json",
                 text=json.dumps(health_data, indent=2)
             )]
         )
     else:
-        raise ValueError(f"Unknown resource: {uri}")
+        raise ValueError(f"Unknown resource: {uri_str}")
 
 
 @server.list_tools()

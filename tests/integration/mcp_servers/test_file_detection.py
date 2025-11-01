@@ -108,7 +108,7 @@ async def test_list_tools():
 
 @pytest.mark.slow
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="MCP SDK resource registration issue - resources work but test fails")
+@pytest.mark.skip(reason="MCP SDK resource format issue - needs investigation")
 async def test_health_resource():
     """Test health resource.
     

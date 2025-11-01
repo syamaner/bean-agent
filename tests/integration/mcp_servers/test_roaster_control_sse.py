@@ -157,24 +157,65 @@ async def test_sse_endpoint_requires_roaster_scope(mock_observer_token):
 
 # Test RBAC scenarios
 
-@pytest.mark.slow
 @pytest.mark.asyncio
-async def test_observer_can_connect(mock_observer_token):
-    """Test observer (read-only) can connect to SSE.
-    Note: This is slow because it tries to establish SSE connection.
-    Skip with: pytest -m 'not slow'
-    """
-    pytest.skip("Slow SSE connection test - use integration tests instead")
+async def test_observer_token_validated(mock_observer_token):
+    """Test observer (read-only) token is validated correctly."""
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
+         patch('src.mcp_servers.roaster_control.sse_server.session_manager') as mock_sm, \
+         patch('src.mcp_servers.roaster_control.sse_server.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
+        
+        # Set Auth0 module constants
+        import src.mcp_servers.shared.auth0_middleware as auth_module
+        auth_module.AUTH0_DOMAIN = 'test.auth0.com'
+        auth_module.AUTH0_AUDIENCE = 'https://coffee-roasting-api'
+        
+        mock_sm.is_active.return_value = False
+        mock_sm.get_hardware_info.return_value = {"type": "mock"}
+        mock_validate.return_value = mock_observer_token
+        
+        from src.mcp_servers.roaster_control.sse_server import app
+        client = TestClient(app, raise_server_exceptions=False)
+        
+        # Observer should be able to access SSE endpoint
+        # (actual connection will be attempted but we're just testing auth)
+        response = client.get(
+            "/sse",
+            headers={"Authorization": "Bearer fake.jwt.token"}
+        )
+        # If auth passes, we'll get SSE stream or at least not 401/403
+        assert response.status_code not in [401, 403]
 
 
-@pytest.mark.slow
 @pytest.mark.asyncio
-async def test_operator_can_connect(mock_operator_token):
-    """Test operator (full control) can connect to SSE.
-    Note: This is slow because it tries to establish SSE connection.
-    Skip with: pytest -m 'not slow'
-    """
-    pytest.skip("Slow SSE connection test - use integration tests instead")
+async def test_operator_token_validated(mock_operator_token):
+    """Test operator (full control) token is validated correctly."""
+    with patch('src.mcp_servers.roaster_control.sse_server.ServerConfig'), \
+         patch('src.mcp_servers.roaster_control.sse_server.MockRoaster'), \
+         patch('src.mcp_servers.roaster_control.sse_server.RoastSessionManager'), \
+         patch('src.mcp_servers.roaster_control.sse_server.session_manager') as mock_sm, \
+         patch('src.mcp_servers.roaster_control.sse_server.validate_auth0_token', new_callable=AsyncMock) as mock_validate:
+        
+        # Set Auth0 module constants
+        import src.mcp_servers.shared.auth0_middleware as auth_module
+        auth_module.AUTH0_DOMAIN = 'test.auth0.com'
+        auth_module.AUTH0_AUDIENCE = 'https://coffee-roasting-api'
+        
+        mock_sm.is_active.return_value = False
+        mock_sm.get_hardware_info.return_value = {"type": "mock"}
+        mock_validate.return_value = mock_operator_token
+        
+        from src.mcp_servers.roaster_control.sse_server import app
+        client = TestClient(app, raise_server_exceptions=False)
+        
+        # Operator should be able to access SSE endpoint
+        response = client.get(
+            "/sse",
+            headers={"Authorization": "Bearer fake.jwt.token"}
+        )
+        # If auth passes, we'll get SSE stream or at least not 401/403
+        assert response.status_code not in [401, 403]
 
 
 # Test client audit logging
