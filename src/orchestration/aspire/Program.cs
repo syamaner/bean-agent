@@ -44,6 +44,7 @@ var firstCrackDetection = builder.AddPythonModule(
     .WithHttpEndpoint(port: 5001, env: "FIRST_CRACK_DETECTION_PORT")
     .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
     .WithEnvironment("AUTH0_AUDIENCE", auth0Audience)
+    .WithEnvironment("FIRST_CRACK_MODEL_CHECKPOINT", "models/runs/10s_70overlap_v1/checkpoints/best_model.pt")
     .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
     .WithOtlpExporter();
 

@@ -66,7 +66,7 @@ def load_config(config_path: Optional[str] = None) -> ServerConfig:
     # Step 3: Set defaults if not provided
     if 'model_checkpoint' not in config_data:
         # Default to most recent best model
-        config_data['model_checkpoint'] = 'experiments/runs/10s_70overlap_v1/checkpoints/best_model.pt'
+        config_data['model_checkpoint'] = 'models/runs/10s_70overlap_v1/checkpoints/best_model.pt'
     
     if 'log_level' not in config_data:
         config_data['log_level'] = 'INFO'
