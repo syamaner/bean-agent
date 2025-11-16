@@ -27,6 +27,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Orchestrator directories
+src/orchestration/agents/
+src/orchestration/workflows/
+
 # PyCharm
 .idea/
 
