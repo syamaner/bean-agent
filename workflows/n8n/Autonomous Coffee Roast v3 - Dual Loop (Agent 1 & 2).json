@@ -1,0 +1,879 @@
+{
+  "name": "Autonomous Coffee Roast v3 - Dual Loop (Agent 1 & 2)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "f0f8932b-7cb7-4086-94f2-15c59f25b04b",
+      "name": "Start Roast",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2544,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://genai-7175210165555426.uk.auth0.com/oauth/token",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "client_id",
+              "value": ""
+            },
+            {
+              "name": "client_secret",
+              "value": ""
+            },
+            {
+              "name": "audience",
+              "value": "https://coffee-roasting-api"
+            },
+            {
+              "name": "grant_type",
+              "value": "client_credentials"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9f95d11e-43e9-49f3-9409-b8b8eb379594",
+      "name": "Get Auth0 Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2320,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "token",
+              "name": "auth_token",
+              "value": "={{ $json.access_token }}",
+              "type": "string"
+            },
+            {
+              "id": "phase",
+              "name": "agent1_phase",
+              "value": "initializing",
+              "type": "string"
+            },
+            {
+              "id": "iteration",
+              "name": "agent1_iteration",
+              "value": "0",
+              "type": "number"
+            },
+            {
+              "id": "t0-detected",
+              "name": "t0_detected",
+              "value": "false",
+              "type": "boolean"
+            },
+            {
+              "id": "roaster-started",
+              "name": "roaster_started",
+              "value": "false",
+              "type": "boolean"
+            },
+            {
+              "id": "fc-started",
+              "name": "fc_detection_started",
+              "value": "false",
+              "type": "boolean"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3b5d9596-1c9b-4a05-91ce-0e0d7eb6197f",
+      "name": "Initialize Agent 1 State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -2096,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.t0_detected }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false"
+              },
+              "id": "55bc4fbd-a39b-4c15-9910-158779009a13"
+            },
+            {
+              "leftValue": "={{ $json.agent1_iteration }}",
+              "rightValue": 300,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              },
+              "id": "e53beb38-1be0-48a3-b512-fb3a7dc9dfc6"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "c8d83dc4-cf1d-4c7b-8b2e-cf59aa0a7826",
+      "name": "Continue Agent 1 Loop?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1872,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.agent1_phase === 'waiting_for_beans' ? 10 : 5 }}"
+      },
+      "id": "96a73fd5-3fb5-43a0-bd19-d7a22b59879e",
+      "name": "Wait Agent 1 (Adaptive)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1648,
+        432
+      ],
+      "webhookId": "agent1-wait"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst iteration = (inputData.agent1_iteration || 0) + 1;\nconst waitTime = inputData.agent1_phase === 'waiting_for_beans' ? 2 : 5;\nconst elapsed = iteration * waitTime;\n\nreturn {\n  json: {\n    ...inputData,\n    agent1_iteration: iteration,\n    agent1_elapsed_seconds: elapsed,\n    agent1_elapsed_display: `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`\n  }\n};"
+      },
+      "id": "601d5ee6-f049-4023-b19c-525c19390f38",
+      "name": "Update Agent 1 Iteration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1424,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current Agent 1 State:\n- Phase: {{ $json.agent1_phase }}\n- Iteration: {{ $json.agent1_iteration }}\n- Elapsed: {{ $json.agent1_elapsed_display }}\n- Roaster Started: {{ $json.roaster_started }}\n- FC Detection Started: {{ $json.fc_detection_started }}\n\nIMPORTANT: Call tools based on current phase. Always call get_roast_status to check current state.\n\n\nYou are Agent 1: Coffee Roast Initialization, Preheat, and Bean Detection Agent.\n\n## Current Phase Actions\n\n### Phase: initializing\n1. If roaster_started is false: Call `start_roaster`\n2. If fc_detection_started is false: Call `start_first_crack_detection` with audio_source_type: \"usb_microphone\"\n3. Once both started: Call `set_heat` level: 100, `set_fan` speed: 30\n4. After setup above done.  keep calling read_roaster_status \n4. Output: {\"next_phase\": \"preheating\", \"t0_detected\": false, \"beans_added_temp_c\": null,\"bean_temp_c\":[value], \"t0_timestamp_utc\": null, \"message\": \"Initialization complete\"}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=\n### Phase: preheating\n1. Call `read_roaster_status` to check bean_temp_c\n2. If bean_temp_c >= 170:\n   - Output: {\"next_phase\": \"waiting_for_beans\", \"t0_detected\": false, \"beans_added_temp_c\": null, \"t0_timestamp_utc\": null, \"message\": \"Preheat complete at [X]°C. Waiting for beans...\"}\n3. If bean_temp_c < 170:\n   - Output: {\"next_phase\": \"preheating\", \"t0_detected\": false, \"beans_added_temp_c\": null, \"t0_timestamp_utc\": null, \"message\": \"Preheating: [X]°C / 170°C\"}\n\n### Phase: waiting_for_beans\n1. Call `read_roaster_status` to check metrics.beans_added_temp_c\n2. If beans_added_temp_c is NOT null:\n   - T0 detected!\n   - Output: {\"next_phase\": \"t0_detected\", \"t0_detected\": true, \"beans_added_temp_c\": [actual value], \"bean_temp_c\":[actual value],\"t0_timestamp_utc\": \"[actual timestamp]\", \"message\": \"T0 detected at [X]°C\"}\n3. If beans_added_temp_c is null:\n   - Output: {\"next_phase\": \"waiting_for_beans\", \"t0_detected\": false, \"beans_added_temp_c\": null, \"t0_timestamp_utc\": null, \"message\": \"Waiting for beans at [X]°C\"}\n\n### Phase: t0_detected\nOutput: {\"next_phase\": \"t0_detected\", \"t0_detected\": true, \"beans_added_temp_c\": [value], \"t0_timestamp_utc\": \"[timestamp]\", \"message\": \"T0 detected, ready for Agent 2\"}\n\n## Important\n- ALWAYS call read_roaster_status to get current readings\n- MUST output valid JSON with ALL required fields: next_phase, t0_detected, beans_added_temp_c, bean_temp_c, t0_timestamp_utc, message\n- Make all necessary tool calls each iteration\n- Temperature in Celsius\n\nYour task this iteration: Execute the appropriate phase actions.\n\nKeep heat at 100%. Do not reduce it at this phase.\nFan has to be maximum 30% and not go above that."
+        }
+      },
+      "id": "5f67c897-3f10-4ad0-a26e-9845bdb146ad",
+      "name": "Agent 1: Init & Preheat",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1088,
+        320
+      ],
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"next_phase\": {\n      \"type\": \"string\"\n    },\n    \"t0_detected\": {\n      \"type\": \"boolean\"\n    },\n    \"beans_added_temp_c\": {\n      \"type\": [\"number\", \"null\"]\n    },\n    \"bean_temp_c\":{\n      \"type\": [\"number\", \"null\"]      \n    },\n    \"t0_timestamp_utc\": {\n      \"type\": [\"string\", \"null\"]\n    },\n    \"message\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"next_phase\", \"t0_detected\", \"beans_added_temp_c\",\"bean_temp_c\", \"t0_timestamp_utc\", \"message\"]\n}"
+      },
+      "id": "044a41f5-00a8-4316-b3fc-e7641738fbbf",
+      "name": "Agent 1 Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -768,
+        464
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "maxTokens": 5000,
+          "temperature": 0.2
+        }
+      },
+      "id": "a17060b9-f184-4d11-bae0-d58cc4da1824",
+      "name": "OpenAI Chat Model (Agent 1)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        -1200,
+        544
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "cYF7gLJqU38azf6C",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://host.docker.internal:5002/sse",
+        "serverTransport": "sse",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "read_roaster_status",
+          "start_roaster",
+          "set_heat",
+          "set_fan"
+        ],
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        -1072,
+        544
+      ],
+      "id": "c92e5307-485e-4a74-ad80-fbf59f1b4f54",
+      "name": "Roaster MCP (Agent 1)",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "yQFT5yL0T4LlCk8s",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://host.docker.internal:5001/sse/",
+        "serverTransport": "sse",
+        "authentication": "bearerAuth",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        -944,
+        544
+      ],
+      "id": "72c6755e-00a0-4490-9180-b12d3429b092",
+      "name": "First Crack MCP (Agent 1)",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "yQFT5yL0T4LlCk8s",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\n\n// Get previous state from Update Agent 1 Iteration node\nconst previousState = $('Update Agent 1 Iteration').first().json;\n\n// Get structured output from parser (response.output)\nconst decision = inputData.response?.output || inputData.output || {\n  next_phase: previousState.agent1_phase || 'initializing',\n  t0_detected: false,\n  beans_added_temp_c: null,\n  t0_timestamp_utc: null,\n  message: 'No output from agent'\n};\n\n// Update system started flags based on phase progression\nconst roasterStarted = previousState.roaster_started || \n  (decision.next_phase !== 'initializing');\nconst fcStarted = previousState.fc_detection_started || \n  (decision.next_phase !== 'initializing');\n\n// Check if beans_added_temp_c is a valid number > 90 (handles both string and number)\nconst tempValue = parseFloat(decision.beans_added_temp_c);\nconst hasValidBeansTemp = !isNaN(tempValue) && \n  tempValue > 90 &&\n  decision.beans_added_temp_c !== null &&\n  decision.beans_added_temp_c !== undefined;\n\nreturn {\n  json: {\n    agent1_iteration: previousState.agent1_iteration,\n    agent1_elapsed_seconds: previousState.agent1_elapsed_seconds,\n    agent1_elapsed_display: previousState.agent1_elapsed_display,\n    agent1_phase: decision.next_phase,\n    agent1_output: decision.message,\n    t0_detected: decision.t0_detected || decision.next_phase === 't0_detected' || hasValidBeansTemp,\n    beans_added_temp_c: decision.beans_added_temp_c,\n    t0_timestamp_utc: decision.t0_timestamp_utc,\n    roaster_started: roasterStarted,\n    fc_detection_started: fcStarted,\n    input: inputData\n  }\n};"
+      },
+      "id": "37e2ed46-f979-470c-a4b3-604f17f6f88b",
+      "name": "Update Agent 1 State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "token",
+              "name": "auth_token",
+              "value": "={{ $json.auth_token }}",
+              "type": "string"
+            },
+            {
+              "id": "t0-temp",
+              "name": "beans_added_temp_c",
+              "value": "={{ $json.beans_added_temp_c }}",
+              "type": "number"
+            },
+            {
+              "id": "t0-time",
+              "name": "t0_timestamp_utc",
+              "value": "={{ $json.t0_timestamp_utc }}",
+              "type": "string"
+            },
+            {
+              "id": "phase",
+              "name": "agent2_phase",
+              "value": "pre_first_crack",
+              "type": "string"
+            },
+            {
+              "id": "iteration",
+              "name": "agent2_iteration",
+              "value": "0",
+              "type": "number"
+            },
+            {
+              "id": "fc-detected",
+              "name": "first_crack_detected",
+              "value": "false",
+              "type": "boolean"
+            },
+            {
+              "id": "heat",
+              "name": "current_heat",
+              "value": "90",
+              "type": "number"
+            },
+            {
+              "id": "fan",
+              "name": "current_fan",
+              "value": "50",
+              "type": "number"
+            },
+            {
+              "id": "drop",
+              "name": "drop_executed",
+              "value": "false",
+              "type": "boolean"
+            },
+            {
+              "id": "agent1-log",
+              "name": "agent1_output",
+              "value": "={{ $json.agent1_output }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "731e14d8-4b31-4e1b-9cdd-a3a692b1237e",
+      "name": "Initialize Agent 2 State",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -1648,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.agent2_phase }}",
+              "rightValue": "complete",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              },
+              "id": "07012add-cc88-43ff-a13a-7de161a14ee5"
+            },
+            {
+              "leftValue": "={{ $json.agent2_iteration }}",
+              "rightValue": 1200,
+              "operator": {
+                "type": "number",
+                "operation": "lt"
+              },
+              "id": "42456b45-eb96-40e7-8e18-f39ac2533afe"
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "6b35f972-03df-4445-8015-a08cfe52cd55",
+      "name": "Continue Agent 2 Loop?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -1424,
+        912
+      ]
+    },
+    {
+      "parameters": {
+        "amount": "={{ $json.agent2_phase === 'development' ? 5 : ($json.agent2_phase === 'cooling' ? 5 : 10) }}"
+      },
+      "id": "95fdb120-1c06-4567-a570-170f3b830e69",
+      "name": "Wait Agent 2 (Adaptive)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -1024,
+        720
+      ],
+      "webhookId": "agent2-wait"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\nconst iteration = (inputData.agent2_iteration || 0) + 1;\nconst phase = inputData.agent2_phase;\nconst waitTime = phase === 'development' ? 3 : (phase === 'cooling' ? 5 : 10);\nconst elapsed = iteration * waitTime;\n\nreturn {\n  json: {\n    ...inputData,\n    agent2_iteration: iteration,\n    agent2_elapsed_seconds: elapsed,\n    agent2_elapsed_display: `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, '0')}`\n  }\n};"
+      },
+      "id": "e3be9652-c746-4cf0-9e3a-daeac02942f2",
+      "name": "Update Agent 2 Iteration",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -608,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Current Agent 2 State:\n- Phase: {{ $json.agent2_phase }}\n- Iteration: {{ $json.agent2_iteration }}\n- Elapsed: {{ $json.agent2_elapsed_display }}\n- First Crack Detected: {{ $json.first_crack_detected }}\n- Heat: {{ $json.current_heat }}% | Fan: {{ $json.current_fan }}%\n\nIMPORTANT: Call read_roaster_status and get_first_crack_status FIRST every iteration.\n\nYour task: Monitor and control based on phase.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are Agent 2: Coffee Roasting Control Agent.\n\n## Phase Actions\n\n### Phase: pre_first_crack\n1. Call `read_roaster_status` and `get_first_crack_status`\n2. If first crack NOT detected:\n   - If heat != 90 or fan != 30: Call `set_heat` 100, `set_fan` 30\n   - Monitor bean_temp_c and rate_of_rise_c_per_min\n   - Output: {\"phase\": \"pre_first_crack\", \"action\": \"monitor\", \"message\": \"Monitoring: [X]°C, RoR [Y]°C/min\"}\n3. If first crack detected:\n   - Call `report_first_crack` with timestamp and temperature\n   - Call `set_heat` 80, `set_fan` 50\n   - Output: {\"phase\": \"development\", \"action\": \"adjust\", \"message\": \"First crack! Reducing heat.\"}\n\n### Phase: development\n1. Call `read_roaster_status` to get bean_temp_c and development_time_percent\n2. Control logic:\n   - If bean_temp_c < 190: Continue monitoring\n     * Output: {\"phase\": \"development\", \"action\": \"monitor\", \"message\": \"Development: [X]°C, [Y]%\"}\n   - If 190 <= bean_temp_c < 193 AND dev_time < 12%: Call `set_heat` 50, `set_fan` 70\n     * Output: {\"phase\": \"development\", \"action\": \"monitor\", \"message\": \"Approaching target zone\"}\n   - If 193 <= bean_temp_c <= 196 AND dev_time >= 10% AND dev_time <= 20%:\n     * Call 'start_cooling' and then call `drop_beans`\n     * Output: {\"phase\": \"cooling\", \"action\": \"drop\", \"message\": \"Optimal! Dropping beans.\"}\n   - If bean_temp_c >= 196 and phase is not cooling:\n     * If dev_time < 12%: Emergency - set_heat 20, set_fan 90\n       Output: {\"phase\": \"development\", \"action\": \"adjust\", \"message\": \"Emergency heat reduction\"}\n     * If dev_time >= 12%: Call 'start_cooling' and then call `drop_beans`\n       Output: {\"phase\": \"cooling\", \"action\": \"drop\", \"message\": \"Target met, dropping\"}\n   - If bean_temp_c > 198: EMERGENCY DROP immediately\n     - Call 'start_cooling' and then call `drop_beans`\n     * Output: {\"phase\": \"cooling\", \"action\": \"drop\", \"message\": \"Emergency drop!\"}\n\n### Phase: cooling\n1. If roast_elapsed_seconds > 900\n   - Call `stop_first_crack_detection`\n   - Call `stop_cooling`\n   - Call `stop_roaster`\n   - Output: {\"phase\": \"complete\", \"action\": \"complete\", \"message\": \"Roast complete!\"}\n2. Else: Output {\"phase\": \"cooling\", \"action\": \"monitor\", \"message\": \"Cooling: [X]°C\"}\n\n### Phase: complete\n   - Call `stop_first_crack_detection`\n   - Call `stop_cooling`\n   - Call `stop_roaster`\nOutput: {\"phase\": \"complete\", \"action\": \"complete\", \"message\": \"Final report\"}\n\n## Output Format\nMUST return valid JSON with ALL required fields:\n{\n  \"phase\": \"pre_first_crack\" | \"development\" | \"cooling\" | \"complete\",\n  \"development\" : \"191°C, 8.9%\"\n  \"action\": \"monitor\" | \"adjust\" | \"drop\" | \"complete\",\"bean_temp_c\":[value],\n  \"message\": \"...\"\n}\n\n## Critical\n- ALWAYS call tools FIRST\n- Make decisions based on data\n- MUST output valid JSON with phase, action, and message\n- All temps in Celsius\n- Heat/fan 0-100% (10% increments)"
+        }
+      },
+      "id": "bc7ffcc4-fd38-425a-9e15-26efb2b83594",
+      "name": "Agent 2: Roasting Control",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -272,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"phase\": {\n      \"type\": \"string\"\n    },\n    \"action\": {\n      \"type\": \"string\"\n    },\n    \"bean_temp_c\":{\n      \"type\": [\"number\", \"null\"]      \n    },\n    \"message\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\"phase\", \"action\",\"bean_temp_c\", \"message\"]\n}"
+      },
+      "id": "b04ef988-c159-4d8d-b37c-5e1bc2ae1ff8",
+      "name": "Agent 2 Output Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        64,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {
+          "maxTokens": 1500,
+          "temperature": 0.2
+        }
+      },
+      "id": "f8d4748c-54b8-4eac-8b7a-dd89f9b40443",
+      "name": "OpenAI Chat Model (Agent 2)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        -576,
+        1216
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "cYF7gLJqU38azf6C",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://host.docker.internal:5002/sse",
+        "serverTransport": "sse",
+        "authentication": "bearerAuth",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        -336,
+        1200
+      ],
+      "id": "eaaa782d-89b0-4977-a1c3-54a06f7c9d53",
+      "name": "Roaster MCP (Agent 2)",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "yQFT5yL0T4LlCk8s",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "endpointUrl": "http://host.docker.internal:5001/sse/",
+        "serverTransport": "sse",
+        "authentication": "bearerAuth",
+        "include": "selected",
+        "includeTools": [
+          "get_first_crack_status",
+          "stop_first_crack_detection"
+        ],
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.mcpClientTool",
+      "typeVersion": 1.2,
+      "position": [
+        -128,
+        1184
+      ],
+      "id": "449997f0-8139-420d-97e5-69a9ce3f7c31",
+      "name": "First Crack MCP (Agent 2)",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "yQFT5yL0T4LlCk8s",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputData = $input.first().json;\n\n// Get previous state from Update Agent 2 Iteration node\nconst previousState = $('Update Agent 2 Iteration').first().json;\n\n// Get structured output from parser (response.output)\nconst decision = inputData.response?.output || inputData.output || {\n  phase: previousState.agent2_phase || 'pre_first_crack',\n  action: 'monitor',\n  message: 'No output from agent'\n};\n\nreturn {\n  json: {\n    agent2_iteration: previousState.agent2_iteration,\n    agent2_elapsed_seconds: previousState.agent2_elapsed_seconds,\n    agent2_elapsed_display: previousState.agent2_elapsed_display,\n    agent2_phase: decision.phase,\n    agent2_output: decision.message,\n    current_heat: previousState.current_heat,\n    current_fan: previousState.current_fan,\n    first_crack_detected: decision.phase !== 'pre_first_crack',\n    drop_executed: decision.action === 'drop',\n    beans_added_temp_c: previousState.beans_added_temp_c,\n    t0_timestamp_utc: previousState.t0_timestamp_utc,\n    agent1_output: previousState.agent1_output\n  }\n};"
+      },
+      "id": "358ee52f-2c9e-4a91-9cde-c009897cd359",
+      "name": "Update Agent 2 State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        864
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1424,
+        1216
+      ],
+      "id": "5a0aaf2c-e0bf-4162-98e1-21eaaedbcbed",
+      "name": "Error Trigger"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "Emergency stop: Call stop_cooling, stop_roaster. Report error.",
+        "options": {}
+      },
+      "id": "7ee6ee66-1bc6-437f-8971-80b6845bf4c4",
+      "name": "Stop",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -1088,
+        912
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Roast": {
+      "main": [
+        [
+          {
+            "node": "Get Auth0 Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Auth0 Token": {
+      "main": [
+        [
+          {
+            "node": "Initialize Agent 1 State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Agent 1 State": {
+      "main": [
+        [
+          {
+            "node": "Continue Agent 1 Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Agent 1 Loop?": {
+      "main": [
+        [
+          {
+            "node": "Wait Agent 1 (Adaptive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Initialize Agent 2 State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Agent 1 (Adaptive)": {
+      "main": [
+        [
+          {
+            "node": "Update Agent 1 Iteration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Agent 1 Iteration": {
+      "main": [
+        [
+          {
+            "node": "Agent 1: Init & Preheat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 1: Init & Preheat": {
+      "main": [
+        [
+          {
+            "node": "Update Agent 1 State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Agent 1 State": {
+      "main": [
+        [
+          {
+            "node": "Continue Agent 1 Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Agent 2 State": {
+      "main": [
+        [
+          {
+            "node": "Continue Agent 2 Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Agent 2 Loop?": {
+      "main": [
+        [
+          {
+            "node": "Wait Agent 2 (Adaptive)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Agent 2 (Adaptive)": {
+      "main": [
+        [
+          {
+            "node": "Update Agent 2 Iteration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Agent 2 Iteration": {
+      "main": [
+        [
+          {
+            "node": "Agent 2: Roasting Control",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 2: Roasting Control": {
+      "main": [
+        [
+          {
+            "node": "Update Agent 2 State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Agent 2 State": {
+      "main": [
+        [
+          {
+            "node": "Continue Agent 2 Loop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model (Agent 1)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent 1: Init & Preheat",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model (Agent 2)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agent 2: Roasting Control",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Stop",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 1 Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agent 1: Init & Preheat",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agent 2 Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Agent 2: Roasting Control",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roaster MCP (Agent 1)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent 1: Init & Preheat",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Crack MCP (Agent 1)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent 1: Init & Preheat",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roaster MCP (Agent 2)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent 2: Roasting Control",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Stop",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "First Crack MCP (Agent 2)": {
+      "ai_tool": [
+        [
+          {
+            "node": "Agent 2: Roasting Control",
+            "type": "ai_tool",
+            "index": 0
+          },
+          {
+            "node": "Stop",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "faedf9b4-4022-4ad3-b63d-e892e53e8d64",
+  "meta": {
+    "instanceId": "8636f757383b5758be656e3b93b72c6b703a87cb8cd04449ae29522d1cdcdfe3"
+  },
+  "id": "bA6Z9DqHLY5EnMM2",
+  "tags": []
+}
