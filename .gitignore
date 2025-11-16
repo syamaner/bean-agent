@@ -96,3 +96,4 @@ src/orchestration/aspire/obj/**/*
 sanitize_auth0_secret.sh
 /.flowise/**/*
 /.langflow/**/*
+.venv/**/*

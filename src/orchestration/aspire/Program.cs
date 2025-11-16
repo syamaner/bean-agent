@@ -22,14 +22,13 @@ var testAudioFile = builder.AddParameter("test-audio-file", "", secret: false);
 // Note: Using shared venv at repo root, running servers as modules to support relative imports
 // Working directory is project root so absolute imports like "from src.X" work
 var projectRoot = Path.GetFullPath("../../..");
-var sharedVenvPath = Path.GetFullPath("../../../venv");
+var sharedVenvPath = Path.GetFullPath("../../../.venv");
 
-var roasterControl = builder.AddPythonApp(
+var roasterControl = builder.AddPythonModule(
         "roaster-control",
         projectRoot,
-        "-m",
-        sharedVenvPath)
-    .WithArgs("src.mcp_servers.roaster_control.sse_server")
+        "src.mcp_servers.roaster_control.sse_server")
+    .WithVirtualEnvironment(sharedVenvPath, createIfNotExists: false)
     .WithHttpEndpoint(port: 5002, env: "ROASTER_CONTROL_PORT")
     .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
     .WithEnvironment("AUTH0_AUDIENCE", auth0Audience)
@@ -37,12 +36,11 @@ var roasterControl = builder.AddPythonApp(
     .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
     .WithOtlpExporter();
 
-var firstCrackDetection = builder.AddPythonApp(
+var firstCrackDetection = builder.AddPythonModule(
         "first-crack-detection",
         projectRoot,
-        "-m",
-        sharedVenvPath)
-    .WithArgs("src.mcp_servers.first_crack_detection.sse_server")
+        "src.mcp_servers.first_crack_detection.sse_server")
+    .WithVirtualEnvironment(sharedVenvPath, createIfNotExists: false)
     .WithHttpEndpoint(port: 5001, env: "FIRST_CRACK_DETECTION_PORT")
     .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
     .WithEnvironment("AUTH0_AUDIENCE", auth0Audience)
@@ -51,12 +49,12 @@ var firstCrackDetection = builder.AddPythonApp(
 
 // Agent Framework DevUI Server
 // Web-based interface for testing and debugging the coffee roasting agent
-var devui = builder.AddPythonApp(
+var devui = builder.AddPythonModule(
         "devui",
         projectRoot,
-        "-m",
-        sharedVenvPath)
-    .WithArgs("agents.ms_agent_framework.devui_server", "--no-browser")  // Prevent auto-opening browser
+        "agents.ms_agent_framework.devui_server")
+    .WithVirtualEnvironment(sharedVenvPath, createIfNotExists: false)
+    .WithArgs("--no-browser")  // Prevent auto-opening browser
     .WithHttpEndpoint(port: 18080, env: "DEVUI_PORT")
     .WithEndpoint("http", endpoint => endpoint.IsProxied = false)  // Disable proxy - DevUI binds directly
     .WithEnvironment("OPENAI_API_KEY", openAiApiKey)
