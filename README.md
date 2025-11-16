@@ -67,3 +67,9 @@ Additional, deeper guides are in docs/: setup, testing, architecture, and per‑
 ## Safety and responsibility
 
 This software can control a real coffee roaster. Use at your own risk. Always supervise roasts and be prepared to stop the process. Verify all configuration and hardware connections before enabling autonomous control.
+
+
+## For more information:
+
+- [Part 1: Training a Neural Network to Detect Coffee First Crack from Audio - An Agentic Development Journey with Warp Agent](https://dev.to/syamaner/part-1-training-a-neural-network-to-detect-coffee-first-crack-from-audio-an-agentic-development-1jei)
+- [Part 2: Building MCP Servers to Control a Home Coffee Roaster - An Agentic Development Journey with Warp Agent](https://dev.to/syamaner/part-2-building-mcp-servers-to-control-a-home-coffee-roaster-an-agentic-development-journey-with-58ik)
