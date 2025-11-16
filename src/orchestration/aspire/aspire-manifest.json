@@ -1,0 +1,288 @@
+{
+  "$schema": "https://json.schemastore.org/aspire-8.0.json",
+  "resources": {
+    "auth0-domain": {
+      "type": "parameter.v0",
+      "value": "{auth0-domain.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "auth0-audience": {
+      "type": "parameter.v0",
+      "value": "{auth0-audience.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "auth0-client-id": {
+      "type": "parameter.v0",
+      "value": "{auth0-client-id.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "auth0-client-secret": {
+      "type": "parameter.v0",
+      "value": "{auth0-client-secret.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "openai-api-key": {
+      "type": "parameter.v0",
+      "value": "{openai-api-key.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "n8n-api-key": {
+      "type": "parameter.v0",
+      "value": "{n8n-api-key.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "langflow-password": {
+      "type": "parameter.v0",
+      "value": "{langflow-password.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "flowise-password": {
+      "type": "parameter.v0",
+      "value": "{flowise-password.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "use-mock-hardware": {
+      "type": "parameter.v0",
+      "value": "{use-mock-hardware.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "test-audio-file": {
+      "type": "parameter.v0",
+      "value": "{test-audio-file.inputs.value}",
+      "inputs": {
+        "value": {
+          "type": "string"
+        }
+      }
+    },
+    "roaster-control": {
+      "type": "container.v1",
+      "build": {
+        "context": "../../..",
+        "dockerfile": "../../../Dockerfile"
+      },
+      "args": [
+        "src.mcp_servers.roaster_control.sse_server"
+      ],
+      "env": {
+        "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "true",
+        "ROASTER_CONTROL_PORT": "{roaster-control.bindings.http.targetPort}",
+        "AUTH0_DOMAIN": "{auth0-domain.value}",
+        "AUTH0_AUDIENCE": "{auth0-audience.value}",
+        "USE_MOCK_HARDWARE": "{use-mock-hardware.value}",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 5002
+        }
+      }
+    },
+    "first-crack-detection": {
+      "type": "container.v1",
+      "build": {
+        "context": "../../..",
+        "dockerfile": "../../../Dockerfile"
+      },
+      "args": [
+        "src.mcp_servers.first_crack_detection.sse_server"
+      ],
+      "env": {
+        "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "true",
+        "FIRST_CRACK_DETECTION_PORT": "{first-crack-detection.bindings.http.targetPort}",
+        "AUTH0_DOMAIN": "{auth0-domain.value}",
+        "AUTH0_AUDIENCE": "{auth0-audience.value}",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 5001
+        }
+      }
+    },
+    "devui": {
+      "type": "container.v1",
+      "build": {
+        "context": "../../..",
+        "dockerfile": "../../../Dockerfile"
+      },
+      "args": [
+        "agents.ms_agent_framework.devui_server",
+        "--no-browser"
+      ],
+      "env": {
+        "OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED": "true",
+        "DEVUI_PORT": "{devui.bindings.http.targetPort}",
+        "OPENAI_API_KEY": "{openai-api-key.value}",
+        "OPENAI_MODEL": "gpt-4o-2024-11-20",
+        "AUTH0_DOMAIN": "{auth0-domain.value}",
+        "AUTH0_CLIENT_ID": "{auth0-client-id.value}",
+        "AUTH0_CLIENT_SECRET": "{auth0-client-secret.value}",
+        "AUTH0_API_AUDIENCE": "{auth0-audience.value}",
+        "FIRST_CRACK_MCP_URL": "http://localhost:5001",
+        "ROASTER_CONTROL_MCP_URL": "http://localhost:5002",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+        "services__roaster-control__http__0": "{roaster-control.bindings.http.url}",
+        "services__first-crack-detection__http__0": "{first-crack-detection.bindings.http.url}"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 18080
+        }
+      }
+    },
+    "n8n": {
+      "type": "container.v0",
+      "image": "n8nio/n8n:latest",
+      "bindMounts": [
+        {
+          "source": "../../../.n8n",
+          "target": "/home/node/.n8n",
+          "readOnly": false
+        }
+      ],
+      "env": {
+        "N8N_HOST": "0.0.0.0",
+        "N8N_PORT": "5678",
+        "N8N_PROTOCOL": "http",
+        "WEBHOOK_URL": "http://localhost:5678",
+        "GENERIC_TIMEZONE": "UTC",
+        "N8N_SECURE_COOKIE": "false",
+        "N8N_LOG_LEVEL": "debug",
+        "N8N_LOG_OUTPUT": "console",
+        "N8N_LOG_FILE_LOCATION": "/home/node/.n8n/logs/",
+        "N8N_LOG_FILE_MAX_SIZE": "10",
+        "N8N_LOG_FILE_MAX_COUNT": "3",
+        "ROASTER_CONTROL_SSE": "http://host.docker.internal:5002",
+        "FIRST_CRACK_SSE": "http://host.docker.internal:5001",
+        "AUTH0_DOMAIN": "{auth0-domain.value}",
+        "AUTH0_AUDIENCE": "{auth0-audience.value}",
+        "AUTH0_CLIENT_ID": "{auth0-client-id.value}",
+        "AUTH0_CLIENT_SECRET": "{auth0-client-secret.value}",
+        "N8N_API_KEY": "{n8n-api-key.value}",
+        "services__roaster-control__http__0": "{roaster-control.bindings.http.url}",
+        "services__first-crack-detection__http__0": "{first-crack-detection.bindings.http.url}"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 5678
+        }
+      }
+    },
+    "langflow": {
+      "type": "container.v0",
+      "image": "langflowai/langflow:latest",
+      "bindMounts": [
+        {
+          "source": "../../../.langflow",
+          "target": "/app/langflow",
+          "readOnly": false
+        }
+      ],
+      "env": {
+        "LANGFLOW_PORT": "7860",
+        "LANGFLOW_DATABASE_URL": "sqlite:////app/langflow/langflow.db",
+        "OPENAI_API_KEY": "{openai-api-key.value}",
+        "AUTH0_DOMAIN": "{auth0-domain.value}",
+        "AUTH0_AUDIENCE": "{auth0-audience.value}",
+        "AUTH0_CLIENT_ID": "{auth0-client-id.value}",
+        "AUTH0_CLIENT_SECRET": "{auth0-client-secret.value}",
+        "LANGFLOW_SUPERUSER": "admin",
+        "LANGFLOW_SUPERUSER_PASSWORD": "{langflow-password.value}",
+        "ROASTER_CONTROL_SSE": "http://host.docker.internal:5002/sse",
+        "FIRST_CRACK_SSE": "http://host.docker.internal:5001/sse",
+        "services__roaster-control__http__0": "{roaster-control.bindings.http.url}",
+        "services__first-crack-detection__http__0": "{first-crack-detection.bindings.http.url}"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 7860
+        }
+      }
+    },
+    "flowise": {
+      "type": "container.v0",
+      "image": "flowiseai/flowise:latest",
+      "bindMounts": [
+        {
+          "source": "../../../.flowise",
+          "target": "/root/.flowise",
+          "readOnly": false
+        }
+      ],
+      "env": {
+        "FLOWISE_USERNAME": "admin",
+        "FLOWISE_PASSWORD": "{flowise-password.value}",
+        "DATABASE_TYPE": "sqlite",
+        "DATABASE_PATH": "/root/.flowise",
+        "AUTH0_DOMAIN": "{auth0-domain.value}",
+        "AUTH0_AUDIENCE": "{auth0-audience.value}",
+        "AUTH0_CLIENT_ID": "{auth0-client-id.value}",
+        "AUTH0_CLIENT_SECRET": "{auth0-client-secret.value}",
+        "ROASTER_CONTROL_SSE": "http://host.docker.internal:5002/sse",
+        "FIRST_CRACK_SSE": "http://host.docker.internal:5001/sse",
+        "services__roaster-control__http__0": "{roaster-control.bindings.http.url}",
+        "services__first-crack-detection__http__0": "{first-crack-detection.bindings.http.url}"
+      },
+      "bindings": {
+        "http": {
+          "scheme": "http",
+          "protocol": "tcp",
+          "transport": "http",
+          "targetPort": 3000
+        }
+      }
+    }
+  }
+}

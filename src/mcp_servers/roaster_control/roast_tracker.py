@@ -55,6 +55,9 @@ class RoastTracker:
         self._beans_added_temp: Optional[float] = None
         self._first_crack_temp: Optional[float] = None
         self._drop_temp: Optional[float] = None
+        
+        # Track max preheat temperature for T0 detection
+        self._max_preheat_temp: Optional[float] = None
     
     def update(self, reading: SensorReading):
         """Process new sensor reading.
@@ -99,20 +102,35 @@ class RoastTracker:
     def _detect_beans_added(self, reading: SensorReading):
         """Detect sudden temperature drop indicating beans added.
         
+        Strategy:
+        1. Track maximum temperature seen during preheat
+        2. Detect when current temp drops significantly from that max
+        3. This handles both sudden drops and gradual drops
+        
         Args:
             reading: Current sensor reading
         """
+        curr_temp = reading.bean_temp_c
+        
+        # Track maximum preheat temperature
+        if self._max_preheat_temp is None or curr_temp > self._max_preheat_temp:
+            self._max_preheat_temp = curr_temp
+        
+        # Need at least 2 readings to detect a drop
         if len(self._temp_buffer) < 2:
             return
         
-        prev_timestamp, prev_temp = self._temp_buffer[-2]
-        curr_temp = reading.bean_temp_c
-        
-        drop = prev_temp - curr_temp
-        
-        if drop > self._config.t0_detection_threshold:
-            self._t0 = reading.timestamp
-            self._beans_added_temp = prev_temp
+        # Check if temperature has dropped significantly from the max preheat temp
+        if self._max_preheat_temp is not None:
+            drop = self._max_preheat_temp - curr_temp
+            
+            if drop > self._config.t0_detection_threshold:
+                self._t0 = reading.timestamp
+                self._beans_added_temp = self._max_preheat_temp
+                logger.info(
+                    f"✅ T0 DETECTED: Temp dropped from {self._max_preheat_temp:.1f}°C "
+                    f"to {curr_temp:.1f}°C (drop: {drop:.1f}°C)"
+                )
     
     def get_t0(self) -> Optional[datetime]:
         """Get T0 (beans added time).
@@ -149,7 +167,9 @@ class RoastTracker:
         # Calculate time difference in seconds
         time_delta = (newest_timestamp - oldest_timestamp).total_seconds()
         
-        if time_delta == 0:
+        # Require minimum 10 seconds to avoid crazy values from small time windows
+        # (e.g., 1°C change over 0.1s would give 600°C/min!)
+        if time_delta < 10.0:
             return None
         
         # Calculate temperature change
@@ -157,6 +177,12 @@ class RoastTracker:
         
         # Convert to °C per minute
         ror = (temp_delta / time_delta) * 60.0
+        
+        # Sanity check: typical coffee roasting RoR is -10 to +30°C/min
+        # Clamp to avoid reporting sensor glitches
+        if ror < -50.0 or ror > 100.0:
+            logger.warning(f"RoR calculation out of range ({ror:.1f}°C/min), returning None")
+            return None
         
         return round(ror, 1)
     

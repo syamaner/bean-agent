@@ -49,6 +49,29 @@ var firstCrackDetection = builder.AddPythonApp(
     .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
     .WithOtlpExporter();
 
+// Agent Framework DevUI Server
+// Web-based interface for testing and debugging the coffee roasting agent
+var devui = builder.AddPythonApp(
+        "devui",
+        projectRoot,
+        "-m",
+        sharedVenvPath)
+    .WithArgs("agents.ms_agent_framework.devui_server", "--no-browser")  // Prevent auto-opening browser
+    .WithHttpEndpoint(port: 18080, env: "DEVUI_PORT")
+    .WithEndpoint("http", endpoint => endpoint.IsProxied = false)  // Disable proxy - DevUI binds directly
+    .WithEnvironment("OPENAI_API_KEY", openAiApiKey)
+    .WithEnvironment("OPENAI_MODEL", "gpt-4o-2024-11-20")
+    .WithEnvironment("AUTH0_DOMAIN", auth0Domain)
+    .WithEnvironment("AUTH0_CLIENT_ID", auth0ClientId)
+    .WithEnvironment("AUTH0_CLIENT_SECRET", auth0ClientSecret)
+    .WithEnvironment("AUTH0_API_AUDIENCE", auth0Audience)
+    .WithEnvironment("FIRST_CRACK_MCP_URL", "http://localhost:5001")
+    .WithEnvironment("ROASTER_CONTROL_MCP_URL", "http://localhost:5002")
+    .WithEnvironment("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
+    .WithOtlpExporter()
+    .WithReference(roasterControl)
+    .WithReference(firstCrackDetection);
+
 #pragma warning restore ASPIREHOSTINGPYTHON001
 
 /*

@@ -45,3 +45,11 @@ opentelemetry-exporter-otlp-proto-grpc>=1.21.0
 opentelemetry-instrumentation-requests>=0.42b0
 opentelemetry-instrumentation-flask>=0.42b0
 opentelemetry-instrumentation-fastapi>=0.42b0
+python-json-logger>=2.0.7
+
+# Phase 4: Microsoft Agent Framework (from GitHub)
+# Note: Agent Framework is in early development, installed from GitHub
+git+https://github.com/microsoft/agent-framework.git#subdirectory=python/packages/core
+git+https://github.com/microsoft/agent-framework.git#subdirectory=python/packages/devui
+openai>=1.0.0
+python-dotenv>=1.0.0

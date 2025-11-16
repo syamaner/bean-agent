@@ -89,6 +89,7 @@ class FirstCrackDetector:
         self.audio_file = Path(audio_file) if audio_file else None
         self.use_microphone = use_microphone
         self.device_index = device_index
+        self.checkpoint_path = Path(checkpoint_path) if checkpoint_path else None
         
         # Model parameters
         self.window_size = window_size
@@ -129,7 +130,11 @@ class FirstCrackDetector:
             
             checkpoint = torch.load(checkpoint_path, map_location=model_config.device)
             self.model.load_state_dict(checkpoint['model_state_dict'])
-            print(f"Loaded model from checkpoint: {checkpoint_path}")
+            print(f"[Model] Loaded weights from: {checkpoint_path}")
+            print(f"[Model] Device: {model_config.device}")
+        else:
+            print(f"[Model] Using pretrained AST model (no checkpoint loaded)")
+            print(f"[Model] Device: {model_config.device}")
         
         self.model.eval()
     
@@ -148,13 +153,40 @@ class FirstCrackDetector:
         self._first_crack_detected = False
         self._first_crack_time = None
         
+        # Log configuration
+        print("="*60)
+        print("First Crack Detector - Starting")
+        print("="*60)
+        if self.use_microphone:
+            print(f"[Audio Source] Microphone (live streaming)")
+            if self.device_index is not None:
+                device_info = sd.query_devices(self.device_index)
+                print(f"[Hardware Input] Device {self.device_index}: {device_info['name']}")
+                print(f"[Hardware Input] Max Input Channels: {device_info['max_input_channels']}")
+                print(f"[Hardware Input] Default Sample Rate: {device_info['default_samplerate']} Hz")
+            else:
+                default_device = sd.query_devices(kind='input')
+                print(f"[Hardware Input] Default Device: {default_device['name']}")
+                print(f"[Hardware Input] Max Input Channels: {default_device['max_input_channels']}")
+                print(f"[Hardware Input] Default Sample Rate: {default_device['default_samplerate']} Hz")
+        else:
+            print(f"[Audio Source] File: {self.audio_file}")
+        
+        if self.checkpoint_path:
+            print(f"[Model Weights] {self.checkpoint_path}")
+        else:
+            print(f"[Model Weights] Pretrained AST model (no custom checkpoint)")
+        
+        print(f"[Parameters] Window: {self.window_size}s, Overlap: {self.overlap*100:.0f}%, Threshold: {self.threshold}")
+        print(f"[Parameters] Min Pops: {self.min_pops}, Confirmation Window: {self.confirmation_window}s")
+        print("="*60)
+        
         if self.use_microphone:
             self._thread = threading.Thread(target=self._microphone_loop, daemon=True)
         else:
             self._thread = threading.Thread(target=self._file_processing_loop, daemon=True)
         
         self._thread.start()
-        print(f"Started first crack detection ({'microphone' if self.use_microphone else 'file'})")
     
     def stop(self) -> None:
         """
@@ -263,8 +295,7 @@ class FirstCrackDetector:
                 stream_params["device"] = self.device_index
             
             with sd.InputStream(**stream_params):
-                device_info = f" on device {self.device_index}" if self.device_index is not None else " (default device)"
-                print(f"Microphone stream started{device_info} (sample rate: {self.sample_rate} Hz)")
+                print(f"[Stream] Microphone stream active (sample rate: {self.sample_rate} Hz)")
                 window_index = 0
                 
                 while self._running:

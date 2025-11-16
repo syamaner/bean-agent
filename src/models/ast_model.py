@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Dict, Any
 
 import torch
-from transformers import ASTFeatureExtractor, ASTForAudioClassification
+from transformers import ASTForAudioClassification, ASTFeatureExtractor
 
 
 DEFAULT_MODEL_NAME = "MIT/ast-finetuned-audioset-10-10-0.4593"
@@ -24,7 +24,16 @@ class ModelInitConfig:
 class FirstCrackClassifier(torch.nn.Module):
     def __init__(self, config: ModelInitConfig = ModelInitConfig()):
         super().__init__()
-        self.feature_extractor = ASTFeatureExtractor.from_pretrained(config.model_name)
+        # Create feature extractor manually to avoid 404s from missing processor_config.json
+        # The MIT AST model doesn't have these files, but we know the config from the model
+        self.feature_extractor = ASTFeatureExtractor(
+            max_length=1024,
+            num_mel_bins=128,
+            sampling_rate=16000,
+            do_normalize=True,
+            mean=-4.2677393,
+            std=4.5689974,
+        )
         self.model = ASTForAudioClassification.from_pretrained(
             config.model_name,
             num_labels=config.num_labels,

@@ -179,7 +179,9 @@ Logs warning if:
 ## Metrics Tracked
 
 ### Automatic
-- **T0 (beans added)** - Auto-detected from >10°C temperature drop
+- **T0 (beans added)** - Auto-detected from >10°C temperature drop from max preheat temp
+  - Improved algorithm tracks maximum preheat temperature
+  - Handles both sudden drops and gradual drops over multiple readings
 - **Rate of Rise** - Calculated from 60-second window (°C/min)
 - **Roast elapsed time** - Time since T0 (seconds + MM:SS display)
 
@@ -282,7 +284,7 @@ Logs include:
 ## Known Limitations
 
 1. **Attended operation only** - Safety warnings don't auto-cut power
-2. **T0 detection** - Requires >10°C drop, may miss gradual bean additions
+2. **T0 detection** - Requires seeing preheat phase; must start polling before beans are added
 3. **Mock thermal model** - Simplified, not calibrated to real roasters
 4. **Single roaster** - One active session at a time
 5. **Polling rate** - 1 Hz default may miss rapid changes

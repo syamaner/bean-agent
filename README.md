@@ -148,3 +148,9 @@ The final deliverable will allow the following:
   - Agent evaluates the metrics and makes decision to alter roast process by controlling the machine.
   - When goal is reached (development time 15%-20% and bean temperature < 200 degrees celsius) roast is completed and beans are ejected
 - We will also have a feature to export roast data for future evaluation. 
+
+
+
+
+Use the start_autonomous_mode function
+Call the start_autonomous_mode tool to begin monitoring

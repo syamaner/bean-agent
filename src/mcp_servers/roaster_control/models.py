@@ -48,7 +48,7 @@ class HardwareConfig(BaseModel):
 
 class TrackerConfig(BaseModel):
     """Roast tracker configuration."""
-    t0_detection_threshold: float = Field(10.0, gt=0, le=100.0)  # °C drop to detect beans added
+    t0_detection_threshold: float = Field(40.0, gt=0, le=100.0)  # °C drop to detect beans added
     polling_interval: float = Field(1.0, gt=0.1, le=10.0)  # seconds
     ror_window_size: int = Field(60, ge=10, le=300)  # seconds for rate of rise calculation
     development_time_target_min: float = Field(15.0, ge=0, le=100.0)  # %

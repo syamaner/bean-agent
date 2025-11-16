@@ -59,11 +59,13 @@ class RoasterMetrics:
             unit="%"
         )
         
-        # Histogram for rate of rise
-        self.rate_of_rise = meter.create_histogram(
+        # Gauge for rate of rise (can be negative during cooling)
+        self._cached_ror: Optional[float] = None
+        self.rate_of_rise = meter.create_observable_gauge(
             name="roaster.rate_of_rise",
-            description="Rate of temperature rise",
-            unit="Cel/min"  # Celsius per minute in ASCII
+            description="Rate of temperature change (can be negative during cooling)",
+            unit="Cel/min",  # Celsius per minute in ASCII
+            callbacks=[self._get_rate_of_rise]
         )
         
         # Histograms for roast phase metrics
@@ -118,6 +120,11 @@ class RoasterMetrics:
         if self._cached_env_temp is not None:
             yield metrics.Observation(self._cached_env_temp, {})
     
+    def _get_rate_of_rise(self, _options):
+        """Callback for observable rate of rise gauge."""
+        if self._cached_ror is not None:
+            yield metrics.Observation(self._cached_ror, {})
+    
     def record_bean_temperature(self, temperature: float, timestamp: datetime):
         """Record bean temperature reading."""
         self._cached_bean_temp = temperature
@@ -165,11 +172,8 @@ class RoasterMetrics:
         )
     
     def record_rate_of_rise(self, ror_c_per_min: float, timestamp: datetime):
-        """Record rate of rise."""
-        self.rate_of_rise.record(
-            ror_c_per_min,
-            {"utc_timestamp": timestamp.isoformat()}
-        )
+        """Record rate of rise (can be negative during cooling or temp drops)."""
+        self._cached_ror = ror_c_per_min
     
     def record_development_metrics(
         self,

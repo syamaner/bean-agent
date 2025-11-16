@@ -56,7 +56,34 @@ class DetectionSessionManager:
         self.current_session: Optional[DetectionSession] = None
         self.metrics = metrics
         self._lock = threading.Lock()
-        logger.info(f"DetectionSessionManager initialized with checkpoint: {config.model_checkpoint}")
+        
+        # Log initialization details
+        import torch
+        import sounddevice as sd
+        
+        logger.info("="*60)
+        logger.info("First Crack Detection MCP Server - Initialization")
+        logger.info("="*60)
+        logger.info(f"[Model Checkpoint] {config.model_checkpoint}")
+        logger.info(f"[Model Exists] {Path(config.model_checkpoint).exists()}")
+        
+        device = 'mps' if torch.backends.mps.is_available() else ('cuda' if torch.cuda.is_available() else 'cpu')
+        logger.info(f"[Compute Device] {device}")
+        
+        logger.info(f"[Default Parameters] Threshold: {config.default_threshold}, Min Pops: {config.default_min_pops}, Confirmation Window: {config.default_confirmation_window}s")
+        
+        # Log available audio devices
+        try:
+            devices = sd.query_devices()
+            input_devices = [d for d in devices if d['max_input_channels'] > 0]
+            logger.info(f"[Audio Devices] Found {len(input_devices)} input device(s)")
+            for idx, device_info in enumerate(devices):
+                if device_info['max_input_channels'] > 0:
+                    logger.info(f"  - Device {idx}: {device_info['name']} ({device_info['max_input_channels']} channels, {device_info['default_samplerate']} Hz)")
+        except Exception as e:
+            logger.warning(f"Could not query audio devices: {e}")
+        
+        logger.info("="*60)
     
     def start_session(self, audio_config: AudioConfig) -> SessionInfo:
         """
@@ -243,8 +270,10 @@ class DetectionSessionManager:
                 confirmation_window=self.config.default_confirmation_window
             )
         
-        # Start the detector
+        # Start the detector (this will log hardware/model/source details)
+        logger.info("Starting FirstCrackDetector...")
         detector.start()
+        logger.info("FirstCrackDetector started successfully")
         
         return detector
     

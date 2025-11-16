@@ -24,35 +24,50 @@ T0 is the moment when beans are added to the preheated roaster. This is detected
 
 ### Detection Algorithm
 
+**Updated Strategy** (improved to handle gradual drops):
+
 ```python
 def _detect_beans_added(self, reading: SensorReading):
-    """Detect sudden temperature drop indicating beans added."""
+    """Detect sudden temperature drop indicating beans added.
+    
+    Strategy:
+    1. Track maximum temperature seen during preheat
+    2. Detect when current temp drops significantly from that max
+    3. This handles both sudden drops and gradual drops
+    """
+    curr_temp = reading.bean_temp_c
+    
+    # Track maximum preheat temperature
+    if self._max_preheat_temp is None or curr_temp > self._max_preheat_temp:
+        self._max_preheat_temp = curr_temp
+    
+    # Need at least 2 readings to detect a drop
     if len(self._temp_buffer) < 2:
         return
     
-    prev_timestamp, prev_temp = self._temp_buffer[-2]
-    curr_temp = reading.bean_temp_c
-    
-    drop = prev_temp - curr_temp
-    
-    if drop > self._config.t0_detection_threshold:  # Default: 10°C
-        self._t0 = reading.timestamp
-        self._beans_added_temp = prev_temp
+    # Check if temperature has dropped significantly from the max preheat temp
+    if self._max_preheat_temp is not None:
+        drop = self._max_preheat_temp - curr_temp
+        
+        if drop > self._config.t0_detection_threshold:
+            self._t0 = reading.timestamp
+            self._beans_added_temp = self._max_preheat_temp
 ```
 
 ### Key Features
 
 1. **Automatic Detection**: No manual input required
 2. **Configurable Threshold**: Default 10°C, adjustable per roaster
-3. **Temperature Capture**: Records exact pre-drop temperature
+3. **Temperature Capture**: Records exact pre-drop temperature (max preheat temp)
 4. **Idempotent**: Only detects T0 once per session
-5. **Buffer-Based**: Uses last 2 readings for drop calculation
+5. **Handles Gradual Drops**: Tracks max preheat temp and compares to current
+6. **Robust**: Works even if temp drops gradually over multiple readings
 
 ---
 
 ## Test Coverage
 
-### Test Cases (6 tests)
+### Test Cases (9 tests)
 
 | Test | Purpose | Scenario |
 |------|---------|----------|
@@ -138,6 +153,7 @@ Time    Bean Temp   Event
 2. **Single Detection**: Can't handle mid-roast bean additions (not a real scenario)
 3. **Requires Minimum Readings**: Needs at least 2 readings (< 2 seconds delay)
 4. **No Validation**: Doesn't verify drop makes sense (e.g., won't reject 100°C drop)
+5. **Requires Preheat Observation**: Must see at least one reading during preheat to establish baseline
 
 ---
 
