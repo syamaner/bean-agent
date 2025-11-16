@@ -97,3 +97,4 @@ sanitize_auth0_secret.sh
 /.flowise/**/*
 /.langflow/**/*
 .venv/**/*
+replacements.txt
