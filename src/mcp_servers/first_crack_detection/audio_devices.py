@@ -36,15 +36,24 @@ def list_audio_devices() -> List[Dict[str, Any]]:
 def find_usb_microphone() -> Optional[int]:
     """
     Find first USB audio input device.
-    
-    Uses heuristic: device name contains "USB" or "PnP" (case-insensitive).
-    Prioritizes explicit USB devices even if they are the default.
-    
+
+    Prefers a CoreAudio Aggregate Device named 'RoastMics' when present so that
+    the detector opens the hardware through the aggregate rather than claiming the
+    raw USB device exclusively.  Claiming the raw device prevents other processes
+    (e.g. the dual-mic recorder) from opening the same hardware simultaneously.
+    Falls back to the raw USB device when no aggregate is available.
+
     Returns:
         Device index if found, None otherwise
     """
     devices = list_audio_devices()
-    
+
+    # Prefer the Aggregate Device — opening it lets CoreAudio multiplex the
+    # underlying hardware so concurrent readers (recorder + detector) can coexist.
+    for dev in devices:
+        if "roastmics" in dev["name"].lower():
+            return dev["index"]
+
     # First pass: Look for explicit USB or PnP devices (e.g., "USB PnP Audio Device")
     for dev in devices:
         name_lower = dev["name"].lower()
